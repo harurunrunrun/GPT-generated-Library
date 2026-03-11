@@ -1,0 +1,470 @@
+#pragma once
+#include <bits/stdc++.h>
+using namespace std;
+
+struct Permutation {
+    // p[i] = i の行き先
+    // 0-indexed
+    vector<int> p;
+
+    // 空の順列を作る
+    // 使い方:
+    //   Permutation p;
+    // 計算量: O(1)
+    Permutation() = default;
+
+    // 長さ n の恒等順列を作る
+    // 使い方:
+    //   Permutation p(5);   // [0,1,2,3,4]
+    // 計算量: O(n)
+    explicit Permutation(int n) : p(n) {
+        iota(p.begin(), p.end(), 0);
+    }
+
+    // ベクタから順列を作る
+    // 使い方:
+    //   Permutation p({2,0,1,4,3});
+    // 注意:
+    //   妥当な順列かどうかは is_valid() で確認する
+    // 計算量: O(n)
+    explicit Permutation(const vector<int>& v) : p(v) {}
+
+    // 順列のサイズを返す
+    // 使い方:
+    //   int n = p.size();
+    // 計算量: O(1)
+    int size() const { return (int)p.size(); }
+
+    // 長さ n の恒等順列を返す
+    // 使い方:
+    //   auto id = Permutation::identity(n);
+    // 計算量: O(n)
+    static Permutation identity(int n) {
+        return Permutation(n);
+    }
+
+    // p が 0..n-1 の順列になっているかを判定する
+    // 使い方:
+    //   assert(p.is_valid());
+    // 計算量: O(n)
+    bool is_valid() const {
+        int n = size();
+        vector<int> used(n, 0);
+        for (int x : p) {
+            if (x < 0 || x >= n) return false;
+            if (used[x]) return false;
+            used[x] = 1;
+        }
+        return true;
+    }
+
+    // i の行き先 p[i] を返す
+    // 使い方:
+    //   int to = p[i];
+    // 計算量: O(1)
+    int operator[](int i) const { return p[i]; }
+
+    // 順列の一致判定
+    // 使い方:
+    //   if (p == q) ...
+    // 計算量: O(n)
+    bool operator==(const Permutation& other) const { return p == other.p; }
+
+    // 順列の不一致判定
+    // 使い方:
+    //   if (p != q) ...
+    // 計算量: O(n)
+    bool operator!=(const Permutation& other) const { return p != other.p; }
+
+    // 順列の合成
+    // (a * b)(i) = a(b(i))
+    // つまり「先に b を作用させ、その後 a を作用させる」
+    //
+    // 使い方:
+    //   Permutation a({1,2,0});
+    //   Permutation b({2,0,1});
+    //   Permutation c = a * b;
+    //
+    // 計算量: O(n)
+    Permutation operator*(const Permutation& other) const {
+        int n = size();
+        assert(n == other.size());
+        vector<int> res(n);
+        for (int i = 0; i < n; i++) {
+            res[i] = p[other.p[i]];
+        }
+        return Permutation(res);
+    }
+
+    // 自分自身に順列を合成して更新する
+    // 使い方:
+    //   p *= q;   // p = p * q
+    // 計算量: O(n)
+    Permutation& operator*=(const Permutation& other) {
+        return *this = (*this) * other;
+    }
+
+    // 逆順列を返す
+    // inv[p[i]] = i を満たす順列
+    //
+    // 使い方:
+    //   auto inv = p.inverse();
+    //
+    // 計算量: O(n)
+    Permutation inverse() const {
+        int n = size();
+        vector<int> inv(n);
+        for (int i = 0; i < n; i++) inv[p[i]] = i;
+        return Permutation(inv);
+    }
+
+    // 順列の k 乗を返す
+    // p^k を表す。k < 0 も対応しており、その場合は inverse() を使う
+    //
+    // 使い方:
+    //   auto q = p.pow(10);
+    //   auto inv = p.pow(-1);
+    //
+    // 計算量: O(n)
+    // 備考:
+    //   cycle 分解を使っているため、二分累乗ではなく O(n) で計算できる
+    Permutation pow(long long k) const {
+        if (k < 0) return inverse().pow(-k);
+
+        int n = size();
+        vector<int> res(n, -1), vis(n, 0);
+
+        for (int s = 0; s < n; s++) {
+            if (vis[s]) continue;
+            vector<int> cyc;
+            int cur = s;
+            while (!vis[cur]) {
+                vis[cur] = 1;
+                cyc.push_back(cur);
+                cur = p[cur];
+            }
+            int m = (int)cyc.size();
+            long long shift = k % m;
+            for (int i = 0; i < m; i++) {
+                res[cyc[i]] = cyc[(i + shift) % m];
+            }
+        }
+        return Permutation(res);
+    }
+
+    // 巡回分解を返す
+    // include_fixed = false のとき、長さ 1 の cycle は省く
+    //
+    // 使い方:
+    //   auto cs = p.cycles();
+    //   for (auto& cyc : cs) {
+    //       // cyc は 1 つの cycle
+    //   }
+    //
+    // 計算量: O(n)
+    vector<vector<int>> cycles(bool include_fixed = false) const {
+        int n = size();
+        vector<int> vis(n, 0);
+        vector<vector<int>> res;
+        for (int s = 0; s < n; s++) {
+            if (vis[s]) continue;
+            vector<int> cyc;
+            int cur = s;
+            while (!vis[cur]) {
+                vis[cur] = 1;
+                cyc.push_back(cur);
+                cur = p[cur];
+            }
+            if (include_fixed || (int)cyc.size() > 1) {
+                res.push_back(cyc);
+            }
+        }
+        return res;
+    }
+
+    struct CycleInfo {
+        // cycles[cid] = cid 番目の cycle
+        vector<vector<int>> cycles;
+
+        // 頂点 v が属する cycle 番号
+        vector<int> cycle_id;
+
+        // 頂点 v が cycle 内の何番目か
+        vector<int> pos_in_cycle;
+
+        // 頂点 v が属する cycle の長さ
+        vector<int> cycle_len;
+    };
+
+    // cycle に関する補助情報をまとめて作る
+    // kth_image() を大量に呼ぶ場合などに有用
+    //
+    // 使い方:
+    //   auto info = p.build_cycle_info();
+    //   int cid = info.cycle_id[v];
+    //
+    // 計算量: O(n)
+    CycleInfo build_cycle_info(bool include_fixed = true) const {
+        int n = size();
+        vector<int> vis(n, 0);
+
+        CycleInfo info;
+        info.cycle_id.assign(n, -1);
+        info.pos_in_cycle.assign(n, -1);
+        info.cycle_len.assign(n, -1);
+
+        for (int s = 0; s < n; s++) {
+            if (vis[s]) continue;
+            vector<int> cyc;
+            int cur = s;
+            while (!vis[cur]) {
+                vis[cur] = 1;
+                cyc.push_back(cur);
+                cur = p[cur];
+            }
+            if (!include_fixed && (int)cyc.size() == 1) continue;
+
+            int cid = (int)info.cycles.size();
+            for (int i = 0; i < (int)cyc.size(); i++) {
+                int v = cyc[i];
+                info.cycle_id[v] = cid;
+                info.pos_in_cycle[v] = i;
+                info.cycle_len[v] = (int)cyc.size();
+            }
+            info.cycles.push_back(cyc);
+        }
+        return info;
+    }
+
+    // 頂点 v に k 回順列を作用させたあとの頂点を返す
+    // build_cycle_info() の結果を使う高速版
+    //
+    // 使い方:
+    //   auto info = p.build_cycle_info();
+    //   int to = p.kth_image(v, 1000000000000LL, info);
+    //
+    // 計算量: O(1)
+    // 前計算: build_cycle_info() に O(n)
+    int kth_image(int v, long long k, const CycleInfo& info) const {
+        int cid = info.cycle_id[v];
+        assert(cid != -1);
+        const auto& cyc = info.cycles[cid];
+        int m = (int)cyc.size();
+
+        long long shift = k % m;
+        if (shift < 0) shift += m;
+
+        int pos = info.pos_in_cycle[v];
+        return cyc[(pos + shift) % m];
+    }
+
+    // 順列の偶奇を返す
+    // 0 = 偶置換, 1 = 奇置換
+    //
+    // 使い方:
+    //   if (p.parity() == 0) ...
+    //
+    // 計算量: O(n)
+    int parity() const {
+        int n = size();
+        int c = 0;
+        vector<int> vis(n, 0);
+        for (int i = 0; i < n; i++) {
+            if (vis[i]) continue;
+            c++;
+            int cur = i;
+            while (!vis[cur]) {
+                vis[cur] = 1;
+                cur = p[cur];
+            }
+        }
+        return (n - c) & 1;
+    }
+
+    // 順列の位数を返す
+    // すなわち p^k = identity となる最小の正整数 k
+    // cycle 長の lcm に等しい
+    //
+    // 使い方:
+    //   long long ord = p.order();
+    //
+    // 計算量: O(n log V) 程度
+    // 備考:
+    //   lcm 計算で long long が overflow することがある
+    long long order() const {
+        auto gcd_ll = [](long long a, long long b) {
+            while (b) {
+                long long t = a % b;
+                a = b;
+                b = t;
+            }
+            return a;
+        };
+
+        long long ans = 1;
+        for (auto& cyc : cycles(true)) {
+            long long len = (long long)cyc.size();
+            ans = ans / gcd_ll(ans, len) * len;
+        }
+        return ans;
+    }
+
+    // 配列 a に順列を作用させる
+    // b[p[i]] = a[i]
+    //
+    // 使い方:
+    //   vector<int> a = {10,20,30};
+    //   auto b = p.apply(a);
+    //
+    // 計算量: O(n)
+    template <class T>
+    vector<T> apply(const vector<T>& a) const {
+        int n = size();
+        assert((int)a.size() == n);
+        vector<T> b(n);
+        for (int i = 0; i < n; i++) b[p[i]] = a[i];
+        return b;
+    }
+
+    // 逆向きに配列へ作用させる
+    // b[i] = a[p[i]]
+    //
+    // 使い方:
+    //   vector<int> a = {10,20,30};
+    //   auto b = p.apply_inverse(a);
+    //
+    // 計算量: O(n)
+    // 備考:
+    //   apply(inverse(a)) と対応づけて使うと整理しやすい
+    template <class T>
+    vector<T> apply_inverse(const vector<T>& a) const {
+        int n = size();
+        assert((int)a.size() == n);
+        vector<T> b(n);
+        for (int i = 0; i < n; i++) b[i] = a[p[i]];
+        return b;
+    }
+
+    // bitmask に順列を作用させる
+    // n <= 64 用
+    // bit i が立っていれば、結果では bit p[i] が立つ
+    //
+    // 使い方:
+    //   uint64_t mask = (1ULL << 0) | (1ULL << 4);
+    //   uint64_t moved = p.apply_mask_u64(mask);
+    //
+    // 計算量: O(n)
+    uint64_t apply_mask_u64(uint64_t mask) const {
+        int n = size();
+        assert(n <= 64);
+        uint64_t res = 0;
+        for (int i = 0; i < n; i++) {
+            if ((mask >> i) & 1ULL) {
+                res |= (1ULL << p[i]);
+            }
+        }
+        return res;
+    }
+
+    // 順列 p 自身の辞書順順位を返す
+    // 順列全体を 0..n!-1 に圧縮したいときに使う
+    //
+    // 使い方:
+    //   long long id = p.rank();
+    //
+    // 計算量: O(n^2)
+    // 制約:
+    //   long long で安全なのは概ね n <= 20
+    long long rank() const {
+        int n = size();
+        assert(n <= 20);
+
+        vector<long long> fact(n + 1, 1);
+        for (int i = 1; i <= n; i++) fact[i] = fact[i - 1] * i;
+
+        vector<int> used(n, 0);
+        long long res = 0;
+        for (int i = 0; i < n; i++) {
+            int smaller_unused = 0;
+            for (int x = 0; x < p[i]; x++) {
+                if (!used[x]) smaller_unused++;
+            }
+            res += smaller_unused * fact[n - 1 - i];
+            used[p[i]] = 1;
+        }
+        return res;
+    }
+
+    // 辞書順順位 k から順列を復元する
+    //
+    // 使い方:
+    //   auto p = Permutation::unrank(n, k);
+    //
+    // 計算量: O(n^2)
+    // 制約:
+    //   long long で安全なのは概ね n <= 20
+    static Permutation unrank(int n, long long k) {
+        assert(n <= 20);
+
+        vector<long long> fact(n + 1, 1);
+        for (int i = 1; i <= n; i++) fact[i] = fact[i - 1] * i;
+        assert(0 <= k && k < fact[n]);
+
+        vector<int> elems(n);
+        iota(elems.begin(), elems.end(), 0);
+
+        vector<int> res;
+        res.reserve(n);
+
+        for (int i = n; i >= 1; i--) {
+            long long block = fact[i - 1];
+            long long idx = k / block;
+            k %= block;
+            res.push_back(elems[(int)idx]);
+            elems.erase(elems.begin() + idx);
+        }
+        return Permutation(res);
+    }
+
+    // p を次の辞書順順列に進める
+    // 存在すれば true, 最後なら false
+    //
+    // 使い方:
+    //   do {
+    //       // p を使う
+    //   } while (p.next());
+    //
+    // 計算量: O(n)
+    bool next() { return next_permutation(p.begin(), p.end()); }
+
+    // p を前の辞書順順列に戻す
+    // 存在すれば true, 最初なら false
+    //
+    // 使い方:
+    //   while (p.prev()) ...
+    //
+    // 計算量: O(n)
+    bool prev() { return prev_permutation(p.begin(), p.end()); }
+
+    // cycle 表現から順列を作る
+    // 例:
+    //   {{0,2,4}, {1,3}}
+    // は 0->2, 2->4, 4->0, 1->3, 3->1 を表す
+    //
+    // 使い方:
+    //   auto p = Permutation::from_cycles(5, {{0,2,4}, {1,3}});
+    //
+    // 計算量: O(n + cycle の総長)
+    static Permutation from_cycles(int n, const vector<vector<int>>& cyc) {
+        vector<int> p(n);
+        iota(p.begin(), p.end(), 0);
+        for (auto& c : cyc) {
+            int m = (int)c.size();
+            if (m == 0) continue;
+            for (int i = 0; i < m; i++) {
+                p[c[i]] = c[(i + 1) % m];
+            }
+        }
+        return Permutation(p);
+    }
+};
