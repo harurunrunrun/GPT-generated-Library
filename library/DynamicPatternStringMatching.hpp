@@ -1,0 +1,663 @@
+
+
+// referecne: https://arxiv.org/abs/2506.11318
+
+
+#pragma once
+
+#include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <cstdint>
+#include <random>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace dynpat {
+
+class DynamicPatternMatcher {
+  static constexpr std::uint64_t MOD1 = 1000000007ULL;
+  static constexpr std::uint64_t MOD2 = 1000000009ULL;
+
+  // rolling hash の base を実行時に 1 回だけランダムに決める。
+  // hack 対策として固定値を避ける。
+  // 以後は同じ base を使い回す。
+  // 時間計算量: 初回のみ O(1)、以後 O(1)
+  static std::uint32_t random_base() {
+    static const std::uint32_t base = []() -> std::uint32_t {
+      std::uint64_t seed =
+          static_cast<std::uint64_t>(
+              std::chrono::steady_clock::now().time_since_epoch().count()) ^
+          (static_cast<std::uint64_t>(std::random_device{}()) << 1);
+
+      std::mt19937_64 gen(seed);
+
+      // 0 や 1 は避ける。
+      // MOD1, MOD2 より小さい必要があるので上限は 1e9 にしている。
+      std::uniform_int_distribution<std::uint32_t> dist(256U, 1000000000U);
+
+      std::uint32_t b = dist(gen);
+      if ((b & 1U) == 0) ++b;  // 奇数に寄せる
+      if (b < 256U) b = 911382323U;
+      return b;
+    }();
+    return base;
+  }
+
+  struct Hash {
+    std::uint32_t h1 = 0;
+    std::uint32_t h2 = 0;
+    int len = 0;
+
+    // 2 本の rolling hash と長さが一致するかを判定する。
+    // 時間計算量: O(1)
+    bool operator==(const Hash& other) const {
+      return len == other.len && h1 == other.h1 && h2 == other.h2;
+    }
+  };
+
+  struct Node {
+    char ch;
+    std::uint32_t prio;
+    Node* left;
+    Node* right;
+    int sz;
+    Hash hash;
+
+    // 1 文字だけを持つ implicit treap ノードを構築する。
+    // hash はその 1 文字に対応する値で初期化する。
+    // 時間計算量: O(1)
+    explicit Node(char c, std::uint32_t p)
+        : ch(c), prio(p), left(nullptr), right(nullptr), sz(1) {
+      const std::uint32_t v = char_value(c);
+      hash = {v, v, 1};
+    }
+  };
+
+  inline static std::vector<std::uint32_t> pow1_{1};
+  inline static std::vector<std::uint32_t> pow2_{1};
+  inline static std::mt19937 rng_{712367821};
+
+  std::string text_;
+  int n_ = 0;
+  std::vector<int> sa_;
+  std::vector<std::uint32_t> text_pref1_;
+  std::vector<std::uint32_t> text_pref2_;
+  Node* root_ = nullptr;
+
+  // 文字を rolling hash 用の正の整数に変換する。
+  // 0 を避けるため +1 している。
+  // 時間計算量: O(1)
+  static std::uint32_t char_value(char c) {
+    return static_cast<unsigned char>(c) + 1U;
+  }
+
+  // 部分木サイズを返す。
+  // null のときは 0 を返す。
+  // 時間計算量: O(1)
+  static int size(Node* t) { return t ? t->sz : 0; }
+
+  // 空文字列の hash を返す。
+  // 時間計算量: O(1)
+  static Hash empty_hash() { return {}; }
+
+  // rolling hash の累乗 base^i を need まで前計算する。
+  // 未計算分だけ push する。
+  // 時間計算量: 償却 O(need - 現在サイズ)
+  static void ensure_powers(int need) {
+    if (need < 0) return;
+    const std::uint32_t base = random_base();
+    while (static_cast<int>(pow1_.size()) <= need) {
+      pow1_.push_back(static_cast<std::uint32_t>((pow1_.back() * 1ULL * base) % MOD1));
+      pow2_.push_back(static_cast<std::uint32_t>((pow2_.back() * 1ULL * base) % MOD2));
+    }
+  }
+
+  // 2 つの文字列 hash a, b を連結した hash を返す。
+  // 文字列としては a + b に対応する。
+  // 時間計算量: O(1)（ensure_powers の未計算分を除く）
+  static Hash combine(const Hash& a, const Hash& b) {
+    ensure_powers(b.len);
+    Hash out;
+    out.len = a.len + b.len;
+    out.h1 = static_cast<std::uint32_t>((a.h1 * 1ULL * pow1_[b.len] + b.h1) % MOD1);
+    out.h2 = static_cast<std::uint32_t>((a.h2 * 1ULL * pow2_[b.len] + b.h2) % MOD2);
+    return out;
+  }
+
+  // 1 文字だけからなる文字列の hash を返す。
+  // 時間計算量: O(1)
+  static Hash single_hash(char c) {
+    const std::uint32_t v = char_value(c);
+    return {v, v, 1};
+  }
+
+  // 部分木全体の hash を返す。
+  // null のときは空文字列 hash を返す。
+  // 時間計算量: O(1)
+  static Hash node_hash(Node* t) { return t ? t->hash : empty_hash(); }
+
+  // 子の情報から、サイズと hash を再計算する。
+  // implicit treap の pull 操作。
+  // 時間計算量: O(1)
+  static void pull(Node* t) {
+    if (!t) return;
+    t->sz = 1 + size(t->left) + size(t->right);
+    Hash cur = combine(node_hash(t->left), single_hash(t->ch));
+    t->hash = combine(cur, node_hash(t->right));
+  }
+
+  // 先頭 k 文字を a、残りを b に分割する。
+  // 文字列順ではなく implicit index に基づく split。
+  // 時間計算量: O(log |t|) 期待値
+  static void split(Node* t, int k, Node*& a, Node*& b) {
+    if (!t) {
+      a = nullptr;
+      b = nullptr;
+      return;
+    }
+    const int left_sz = size(t->left);
+    if (k <= left_sz) {
+      split(t->left, k, a, t->left);
+      b = t;
+      pull(b);
+    } else {
+      split(t->right, k - left_sz - 1, t->right, b);
+      a = t;
+      pull(a);
+    }
+  }
+
+  // 2 つの treap a, b を連結する。
+  // a の全要素が b の前にあるとみなす。
+  // 時間計算量: O(log (|a| + |b|)) 期待値
+  static Node* merge(Node* a, Node* b) {
+    if (!a) return b;
+    if (!b) return a;
+    if (a->prio > b->prio) {
+      a->right = merge(a->right, b);
+      pull(a);
+      return a;
+    }
+    b->left = merge(a, b->left);
+    pull(b);
+    return b;
+  }
+
+  // 部分木を深くコピーする。
+  // copy_range で複製を作るために使う。
+  // 時間計算量: O(|t|)
+  static Node* clone_subtree(Node* t) {
+    if (!t) return nullptr;
+    Node* c = new Node(t->ch, t->prio);
+    c->left = clone_subtree(t->left);
+    c->right = clone_subtree(t->right);
+    pull(c);
+    return c;
+  }
+
+  // 部分木を再帰的に破棄する。
+  // デストラクタや clear 時に使う。
+  // 時間計算量: O(|t|)
+  static void destroy(Node* t) {
+    if (!t) return;
+    destroy(t->left);
+    destroy(t->right);
+    delete t;
+  }
+
+  // 文字列 s から treap を構築する。
+  // 1 文字ずつ merge している。
+  // 時間計算量: O(|s| log |s|) 期待値
+  static Node* build_from_string(const std::string& s) {
+    Node* root = nullptr;
+    ensure_powers(static_cast<int>(s.size()) + 5);
+    for (char c : s) {
+      root = merge(root, new Node(c, rng_()));
+    }
+    return root;
+  }
+
+  // 部分木の内容を中順走査して文字列に復元する。
+  // pattern_string() の内部で使う。
+  // 時間計算量: O(|t|)
+  static void to_string_dfs(Node* t, std::string& out) {
+    if (!t) return;
+    to_string_dfs(t->left, out);
+    out.push_back(t->ch);
+    to_string_dfs(t->right, out);
+  }
+
+  // 現在のパターンの k 番目の文字を返す。
+  // 0-indexed。
+  // 時間計算量: O(log |P|) 期待値
+  static char kth(Node* t, int k) {
+    assert(t && 0 <= k && k < size(t));
+    const int left_sz = size(t->left);
+    if (k < left_sz) return kth(t->left, k);
+    if (k == left_sz) return t->ch;
+    return kth(t->right, k - left_sz - 1);
+  }
+
+  // 現在のパターンの区間 [l, r) の hash を返す。
+  // split せずに部分木をたどって計算している。
+  // 時間計算量: O(log |P|) 程度
+  static Hash range_hash(Node* t, int l, int r) {
+    if (!t || l >= r) return empty_hash();
+    const int total = size(t);
+    if (l == 0 && r == total) return t->hash;
+
+    const int left_sz = size(t->left);
+    Hash out = empty_hash();
+
+    if (l < left_sz) {
+      out = combine(out, range_hash(t->left, l, std::min(r, left_sz)));
+    }
+    if (l <= left_sz && left_sz < r) {
+      out = combine(out, single_hash(t->ch));
+    }
+    if (r > left_sz + 1) {
+      out = combine(out, range_hash(t->right, std::max(0, l - left_sz - 1), r - left_sz - 1));
+    }
+    return out;
+  }
+
+  // text_ の suffix array を構築する。
+  // doubling 法による実装。
+  // 時間計算量: O(|T| log^2 |T|)
+  void build_suffix_array() {
+    sa_.resize(n_);
+    std::vector<int> rnk(n_), tmp(n_);
+    for (int i = 0; i < n_; ++i) {
+      sa_[i] = i;
+      rnk[i] = static_cast<unsigned char>(text_[i]);
+    }
+    for (int k = 1;; k <<= 1) {
+      auto cmp = [&](int i, int j) {
+        if (rnk[i] != rnk[j]) return rnk[i] < rnk[j];
+        const int ri = (i + k < n_) ? rnk[i + k] : -1;
+        const int rj = (j + k < n_) ? rnk[j + k] : -1;
+        return ri < rj;
+      };
+      std::sort(sa_.begin(), sa_.end(), cmp);
+      tmp[sa_[0]] = 0;
+      for (int i = 1; i < n_; ++i) {
+        tmp[sa_[i]] = tmp[sa_[i - 1]] + (cmp(sa_[i - 1], sa_[i]) ? 1 : 0);
+      }
+      rnk.swap(tmp);
+      if (rnk[sa_[n_ - 1]] == n_ - 1) break;
+    }
+  }
+
+  // text_ の prefix hash を前計算する。
+  // text_sub_hash() を O(1) で使うための準備。
+  // 時間計算量: O(|T|)
+  void build_text_hashes() {
+    ensure_powers(n_ + 5);
+    const std::uint32_t base = random_base();
+    text_pref1_.assign(n_ + 1, 0);
+    text_pref2_.assign(n_ + 1, 0);
+    for (int i = 0; i < n_; ++i) {
+      const std::uint32_t v = char_value(text_[i]);
+      text_pref1_[i + 1] =
+          static_cast<std::uint32_t>((text_pref1_[i] * 1ULL * base + v) % MOD1);
+      text_pref2_[i + 1] =
+          static_cast<std::uint32_t>((text_pref2_[i] * 1ULL * base + v) % MOD2);
+    }
+  }
+
+  // text_[l, r) の hash を O(1) で返す。
+  // 事前に build_text_hashes() が必要。
+  // 時間計算量: O(1)
+  Hash text_sub_hash(int l, int r) const {
+    assert(0 <= l && l <= r && r <= n_);
+    Hash out;
+    out.len = r - l;
+    out.h1 = static_cast<std::uint32_t>(
+        (text_pref1_[r] + MOD1 - text_pref1_[l] * 1ULL * pow1_[r - l] % MOD1) % MOD1);
+    out.h2 = static_cast<std::uint32_t>(
+        (text_pref2_[r] + MOD2 - text_pref2_[l] * 1ULL * pow2_[r - l] % MOD2) % MOD2);
+    return out;
+  }
+
+  // 現在のパターン長を返す内部関数。
+  // 時間計算量: O(1)
+  int pattern_size_internal() const { return size(root_); }
+
+  // パターン P と text_ の suffix text_[suffix_pos, ...] の最長共通接頭辞長を返す。
+  // 二分探索 + hash 比較で求める。
+  // 時間計算量: O(log |P| * C_hash)
+  int lcp_with_suffix(int suffix_pos) const {
+    const int m = pattern_size_internal();
+    int low = 0;
+    int high = std::min(m, n_ - suffix_pos);
+    while (low < high) {
+      const int mid = (low + high + 1) >> 1;
+      if (range_hash(root_, 0, mid) == text_sub_hash(suffix_pos, suffix_pos + mid)) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return low;
+  }
+
+  // suffix text_[suffix_pos, ...] と現在のパターン P を辞書順比較する。
+  // 戻り値:
+  //   -1: suffix < P
+  //    0: suffix == P
+  //    1: suffix > P
+  // count_occurrences() の二分探索に使う。
+  // 時間計算量: O(log |P| * C_hash)
+  int compare_suffix_with_pattern(int suffix_pos) const {
+    const int m = pattern_size_internal();
+    const int suffix_len = n_ - suffix_pos;
+    const int common = lcp_with_suffix(suffix_pos);
+
+    if (common == std::min(m, suffix_len)) {
+      if (suffix_len < m) return -1;
+      if (suffix_len == m) return 0;
+      return 1;
+    }
+
+    const unsigned char sc = static_cast<unsigned char>(text_[suffix_pos + common]);
+    const unsigned char pc = static_cast<unsigned char>(kth(root_, common));
+    return (sc < pc ? -1 : 1);
+  }
+
+  // suffix text_[suffix_pos, ...] が現在のパターン P を prefix に持つか判定する。
+  // つまり、text のこの suffix の先頭が P と一致するかを調べる。
+  // 時間計算量: O(C_hash)
+  bool suffix_has_pattern_prefix(int suffix_pos) const {
+    const int m = pattern_size_internal();
+    if (m > n_ - suffix_pos) return false;
+    return node_hash(root_) == text_sub_hash(suffix_pos, suffix_pos + m);
+  }
+
+ public:
+  // 固定テキスト text を受け取って構築する。
+  // 以後、text は変更しない前提。
+  // suffix array と text の prefix hash を前計算する。
+  // 時間計算量: O(|T| log^2 |T|)
+  explicit DynamicPatternMatcher(const std::string& text)
+      : text_(text), n_(static_cast<int>(text.size())) {
+    if (n_ > 0) {
+      build_suffix_array();
+      build_text_hashes();
+    }
+  }
+
+  DynamicPatternMatcher(const DynamicPatternMatcher&) = delete;
+  DynamicPatternMatcher& operator=(const DynamicPatternMatcher&) = delete;
+
+  // パターン文字列の treap を破棄する。
+  // 時間計算量: O(|P|)
+  ~DynamicPatternMatcher() { destroy(root_); }
+
+  // 固定テキストの長さを返す。
+  // 時間計算量: O(1)
+  int text_size() const { return n_; }
+
+  // 現在のパターン長を返す。
+  // 時間計算量: O(1)
+  int pattern_size() const { return pattern_size_internal(); }
+
+  // 現在のパターンが空かどうかを返す。
+  // 時間計算量: O(1)
+  bool empty() const { return pattern_size_internal() == 0; }
+
+  // 現在のパターンを空にする。
+  // 時間計算量: O(|P|)
+  void clear_pattern() {
+    destroy(root_);
+    root_ = nullptr;
+  }
+
+  // 現在のパターンを文字列 s に置き換える。
+  // 既存パターンは破棄し、新しく treap を構築する。
+  // 時間計算量: O(|旧P| + |s| log |s|) 期待値
+  void set_pattern(const std::string& s) {
+    clear_pattern();
+    root_ = build_from_string(s);
+  }
+
+  // 現在のパターン全体を std::string として取り出す。
+  // デバッグや確認用。
+  // 時間計算量: O(|P|)
+  std::string pattern_string() const {
+    std::string out;
+    out.reserve(pattern_size_internal());
+    to_string_dfs(root_, out);
+    return out;
+  }
+
+  // 位置 pos に 1 文字 c を挿入する。
+  // pos は 0-indexed で、末尾挿入は pos = |P|。
+  // 時間計算量: O(log |P|) 期待値
+  void insert_char(int pos, char c) {
+    assert(0 <= pos && pos <= pattern_size_internal());
+    Node *a, *b;
+    split(root_, pos, a, b);
+    root_ = merge(merge(a, new Node(c, rng_())), b);
+  }
+
+  // 位置 pos に文字列 s を挿入する。
+  // pos は 0-indexed。
+  // 時間計算量: O(log |P| + |s| log |s|) 期待値
+  void insert_string(int pos, const std::string& s) {
+    assert(0 <= pos && pos <= pattern_size_internal());
+    Node *a, *b;
+    split(root_, pos, a, b);
+    Node* mid = build_from_string(s);
+    root_ = merge(merge(a, mid), b);
+  }
+
+  // 位置 pos の 1 文字を削除する。
+  // 時間計算量: O(log |P|) 期待値
+  void erase_char(int pos) { erase_range(pos, pos + 1); }
+
+  // 区間 [l, r) を削除する。
+  // l, r は 0-indexed、半開区間。
+  // 時間計算量: O(log |P| + 削除部分サイズ) 期待値
+  // destroy(b) に削除されたノード数だけ時間がかかる。
+  void erase_range(int l, int r) {
+    assert(0 <= l && l <= r && r <= pattern_size_internal());
+    Node *a, *b, *c;
+    split(root_, r, b, c);
+    split(b, l, a, b);
+    destroy(b);
+    root_ = merge(a, c);
+  }
+
+  // 区間 [l, r) を切り出し、削除後の文字列における位置 k に挿入する。
+  // つまり move 操作である。
+  // 制約として k は削除後文字列の添字で与える。
+  // 時間計算量: O(log |P|) 期待値
+  void move_range(int l, int r, int k) {
+    assert(0 <= l && l <= r && r <= pattern_size_internal());
+    assert(0 <= k && k <= pattern_size_internal() - (r - l));
+
+    Node *a, *b, *c;
+    split(root_, r, b, c);
+    split(b, l, a, b);
+
+    Node* without = merge(a, c);
+
+    Node *x, *y;
+    split(without, k, x, y);
+    root_ = merge(merge(x, b), y);
+  }
+
+  // 区間 [l, r) を複製し、そのコピーを位置 k に挿入する。
+  // 元の [l, r) 自体は残る。
+  // 時間計算量: O(log |P| + (r - l)) 期待値
+  // 複製のため clone_subtree が線形時間かかる。
+  void copy_range(int l, int r, int k) {
+    assert(0 <= l && l <= r && r <= pattern_size_internal());
+    assert(0 <= k && k <= pattern_size_internal());
+
+    Node *a, *b, *c;
+    split(root_, r, b, c);
+    split(b, l, a, b);
+
+    Node* cloned = clone_subtree(b);
+    root_ = merge(merge(a, b), c);
+
+    Node *x, *y;
+    split(root_, k, x, y);
+    root_ = merge(merge(x, cloned), y);
+  }
+
+  // 現在のパターン P が固定テキスト T に何回現れるかを返す。
+  // 空文字列の場合は |T| + 1 を返す。
+  //
+  // 実装:
+  //   suffix array 上で、P 以上となる最初の suffix を二分探索し、
+  //   そこから P を prefix に持つ suffix がどこまで続くかをさらに二分探索する。
+  //
+  // 時間計算量:
+  //   二分探索 O(log |T|) 回
+  //   各比較で lcp_with_suffix / suffix_has_pattern_prefix を呼ぶので、
+  //   全体として概ね O(log |T| log^2 |P|) 相当
+  long long count_occurrences() const {
+    const int m = pattern_size_internal();
+    if (m == 0) return static_cast<long long>(n_) + 1;
+    if (m > n_) return 0;
+
+    int low = 0;
+    int high = n_;
+    while (low < high) {
+      const int mid = (low + high) >> 1;
+      const int cmp = compare_suffix_with_pattern(sa_[mid]);
+      if (cmp < 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    const int first = low;
+    if (first == n_ || !suffix_has_pattern_prefix(sa_[first])) return 0;
+
+    low = first;
+    high = n_;
+    while (low < high) {
+      const int mid = (low + high) >> 1;
+      if (suffix_has_pattern_prefix(sa_[mid])) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low - first;
+  }
+};
+
+}  // namespace dynpat
+
+/*
+========================
+使い方
+========================
+
+1. 初期化
+   固定テキスト T を与えて作る。
+
+   dynpat::DynamicPatternMatcher dpm("ababa");
+
+   ここで与えた文字列が検索対象の本文 T になる。
+   以後 T は変更しない。
+
+2. パターンの設定
+   可変な検索文字列 P は set_pattern() で設定する。
+
+   dpm.set_pattern("aba");
+
+3. 出現数の取得
+   現在の P が T に何回現れるかを返す。
+
+   long long ans = dpm.count_occurrences();
+
+4. 1 文字挿入
+   P の位置 pos に文字 c を挿入する。
+   0-indexed。末尾挿入は pos = pattern_size()。
+
+   dpm.insert_char(1, 'b');
+
+5. 文字列挿入
+   P の位置 pos に文字列 s を挿入する。
+
+   dpm.insert_string(2, "xyz");
+
+6. 1 文字削除
+   P[pos] を削除する。
+
+   dpm.erase_char(3);
+
+7. 区間削除
+   P[l, r) を削除する。半開区間。
+
+   dpm.erase_range(2, 5);
+
+8. 区間移動
+   P[l, r) を切り出して、削除後の文字列の位置 k に挿入する。
+
+   dpm.move_range(2, 5, 1);
+
+   注意:
+   k は「切り出した後の文字列」に対する位置で指定する。
+
+9. 区間コピー
+   P[l, r) を複製し、そのコピーを位置 k に挿入する。
+   元の区間は残る。
+
+   dpm.copy_range(0, 3, 5);
+
+10. 現在のパターン文字列を取得
+    デバッグや確認に使う。
+
+    std::string s = dpm.pattern_string();
+
+11. パターンを空にする
+
+    dpm.clear_pattern();
+
+12. サイズ取得
+
+    int nT = dpm.text_size();
+    int nP = dpm.pattern_size();
+    bool is_empty = dpm.empty();
+
+========================
+最小例
+========================
+
+#include <iostream>
+
+int main() {
+  dynpat::DynamicPatternMatcher dpm("ababa");
+
+  dpm.set_pattern("aba");
+  std::cout << dpm.count_occurrences() << '\n';  // 2
+
+  dpm.insert_char(1, 'b');                       // P = "abba"
+  std::cout << dpm.pattern_string() << '\n';
+  std::cout << dpm.count_occurrences() << '\n'; // 0
+
+  dpm.erase_char(1);                            // P = "aba"
+  std::cout << dpm.pattern_string() << '\n';
+  std::cout << dpm.count_occurrences() << '\n'; // 2
+}
+
+========================
+注意
+========================
+
+- text は固定、pattern だけを更新する設計。
+- 添字はすべて 0-indexed。
+- erase_range(l, r), move_range(l, r, k), copy_range(l, r, k) の区間は半開区間 [l, r)。
+- assert を使っているので、不正な添字を渡すと停止する。
+- copy_range は区間を実際に複製するので、コピー長に比例する時間がかかる。
+- 空文字列の出現数は |T| + 1 としている。
+- rolling hash の base は実行ごとにランダムに 1 回だけ決まる。
+*/
