@@ -1,0 +1,1043 @@
+#pragma once
+
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <limits>
+#include <map>
+#include <optional>
+#include <stdexcept>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+
+/*
+ * GNU pbds の order statistics tree
+ *
+ * 使える操作:
+ *   - order_of_key(x): x 未満の要素数
+ *   - find_by_order(k): 0-indexed で k 番目の要素
+ *
+ * 注意:
+ *   - GNU 拡張なので g++ -std=gnu++17 を使う
+ */
+using namespace __gnu_pbds;
+
+template <class Key>
+using OrderedSet =
+    tree<Key, null_type, std::less<Key>, rb_tree_tag, tree_order_statistics_node_update>;
+
+/*
+ * DynamicWavletMatrix
+ * -------------------
+ * 点更新対応の Wavelet Matrix 風データ構造。
+ *
+ * 実体:
+ *   - 位置方向に Fenwick Tree
+ *   - 各 Fenwick ノードに order statistics tree
+ *
+ * できること:
+ *   - access / rank / count / select
+ *   - 区間内の k 番目
+ *   - 区間内の値域頻度
+ *   - predecessor / successor
+ *   - mode / top-k frequent
+ *   - 点更新 update(i, x)
+ *
+ * できないこと:
+ *   - 配列長そのものの変更
+ *   - 位置挿入 / 位置削除
+ *
+ * 記号:
+ *   - N: 配列長
+ *   - D: 現在の異なる値の個数
+ *
+ * 型 T について:
+ *   - std::less<T> で順序比較できること
+ *   - コピー可能であること
+ */
+template <class T>
+class DynamicWavletMatrix {
+private:
+    using Pair = std::pair<T, int>;
+    using OSTPair = OrderedSet<Pair>;
+    using OSTValue = OrderedSet<T>;
+
+public:
+    using value_type = T;
+
+    /*
+     * DynamicWavletMatrix()
+     * ---------------------
+     * 空の構造を作る。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    DynamicWavletMatrix() = default;
+
+    /*
+     * DynamicWavletMatrix(data)
+     * -------------------------
+     * 初期配列 data から構築する。
+     *
+     * 使い方:
+     *   std::vector<int> a = {5,1,4,1,3};
+     *   DynamicWavletMatrix<int> wm(a);
+     *
+     * 時間計算量:
+     *   O(N log^2 N)
+     *   ※ 各要素を Fenwick に挿入して構築する
+     */
+    explicit DynamicWavletMatrix(const std::vector<T>& data) {
+        build(data);
+    }
+
+    /*
+     * build(data)
+     * -----------
+     * 配列 data から再構築する。
+     *
+     * 使い方:
+     *   wm.build(a);
+     *
+     * 時間計算量:
+     *   O(N log^2 N)
+     */
+    void build(const std::vector<T>& data) {
+        n_ = static_cast<int>(data.size());
+        data_ = data;
+
+        bit_.clear();
+        bit_.resize(n_ + 1);
+
+        global_freq_.clear();
+        distinct_.clear();
+
+        for (int i = 0; i < n_; ++i) {
+            add_global_(data_[i], +1);
+            fenwick_insert_(i, data_[i]);
+        }
+    }
+
+    /*
+     * size()
+     * ------
+     * 配列長 N を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    int size() const { return n_; }
+
+    /*
+     * empty()
+     * -------
+     * 空かどうかを返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    bool empty() const { return n_ == 0; }
+
+    /*
+     * distinct_size()
+     * ---------------
+     * 現在の異なる値の個数 D を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    int distinct_size() const { return static_cast<int>(distinct_.size()); }
+
+    /*
+     * access(i)
+     * ---------
+     * 現在の配列の i 番目の値を返す。
+     *
+     * 使い方:
+     *   auto x = wm.access(3);
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    const T& access(int i) const {
+        check_index_(i);
+        return data_[i];
+    }
+
+    /*
+     * operator[](i)
+     * -------------
+     * access(i) の別名。
+     *
+     * 使い方:
+     *   auto x = wm[3];
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    const T& operator[](int i) const {
+        return access(i);
+    }
+
+    /*
+     * get(i)
+     * ------
+     * access(i) の別名。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    const T& get(int i) const {
+        return access(i);
+    }
+
+    /*
+     * contains(value)
+     * ---------------
+     * value が配列全体に 1 回以上存在するかを返す。
+     *
+     * 使い方:
+     *   if (wm.contains(10)) { ... }
+     *
+     * 時間計算量:
+     *   O(log D)
+     */
+    bool contains(const T& value) const {
+        return global_freq_.find(value) != global_freq_.end();
+    }
+
+    /*
+     * count(value)
+     * ------------
+     * 配列全体における value の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.count(5);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int count(const T& value) const {
+        return rank(value, n_);
+    }
+
+    /*
+     * count(value, l, r)
+     * ------------------
+     * 区間 [l, r) における value の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.count(5, 2, 8);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int count(const T& value, int l, int r) const {
+        return rank(value, l, r);
+    }
+
+    /*
+     * set(i, value)
+     * -------------
+     * i 番目の値を value に更新する。
+     *
+     * 使い方:
+     *   wm.set(3, 100);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    void set(int i, const T& value) {
+        update(i, value);
+    }
+
+    /*
+     * assign(i, value)
+     * ----------------
+     * set(i, value) の別名。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    void assign(int i, const T& value) {
+        update(i, value);
+    }
+
+    /*
+     * update(i, value)
+     * ----------------
+     * i 番目の値を value に更新する。
+     *
+     * 使い方:
+     *   wm.update(1, 7);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     *   ※ Fenwick 上の各ノードで erase / insert を行う
+     */
+    void update(int i, const T& value) {
+        check_index_(i);
+
+        const T old = data_[i];
+        if (old == value) return;
+
+        fenwick_erase_(i, old);
+        add_global_(old, -1);
+
+        data_[i] = value;
+
+        add_global_(value, +1);
+        fenwick_insert_(i, value);
+    }
+
+    /*
+     * swap_values(i, j)
+     * -----------------
+     * i 番目と j 番目の値を入れ替える。
+     *
+     * 使い方:
+     *   wm.swap_values(2, 8);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     *   ※ update を 2 回使う
+     */
+    void swap_values(int i, int j) {
+        check_index_(i);
+        check_index_(j);
+        if (i == j) return;
+
+        const T vi = data_[i];
+        const T vj = data_[j];
+
+        update(i, vj);
+        update(j, vi);
+    }
+
+    /*
+     * rank(value, r)
+     * --------------
+     * 区間 [0, r) における value の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.rank(5, 10);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int rank(const T& value, int r) const {
+        if (r < 0) r = 0;
+        if (r > n_) r = n_;
+        return prefix_count_equal_(r, value);
+    }
+
+    /*
+     * rank(value, l, r)
+     * -----------------
+     * 区間 [l, r) における value の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.rank(5, 2, 9);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int rank(const T& value, int l, int r) const {
+        if (l > r) std::swap(l, r);
+        l = std::max(l, 0);
+        r = std::min(r, n_);
+        return prefix_count_equal_(r, value) - prefix_count_equal_(l, value);
+    }
+
+    /*
+     * count_less(l, r, upper)
+     * -----------------------
+     * 区間 [l, r) において x < upper を満たす個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.count_less(0, n, 100);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int count_less(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        return prefix_count_less_(r, upper) - prefix_count_less_(l, upper);
+    }
+
+    /*
+     * count_less_equal(l, r, upper)
+     * -----------------------------
+     * 区間 [l, r) において x <= upper を満たす個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.count_less_equal(0, n, 100);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int count_less_equal(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        return prefix_count_less_equal_(r, upper) - prefix_count_less_equal_(l, upper);
+    }
+
+    /*
+     * count_greater(l, r, lower)
+     * --------------------------
+     * 区間 [l, r) において x > lower を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int count_greater(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        return (r - l) - count_less_equal(l, r, lower);
+    }
+
+    /*
+     * count_greater_equal(l, r, lower)
+     * --------------------------------
+     * 区間 [l, r) において x >= lower を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int count_greater_equal(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        return (r - l) - count_less(l, r, lower);
+    }
+
+    /*
+     * range_freq(l, r, upper)
+     * -----------------------
+     * 区間 [l, r) において x < upper の個数を返す。
+     * count_less の別名。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int range_freq(int l, int r, const T& upper) const {
+        return count_less(l, r, upper);
+    }
+
+    /*
+     * range_freq(l, r, lower, upper)
+     * ------------------------------
+     * 区間 [l, r) において lower <= x < upper の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.range_freq(0, n, 10, 20);
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int range_freq(int l, int r, const T& lower, const T& upper) const {
+        validate_range_(l, r);
+        if (!(lower < upper)) return 0;
+        return count_less(l, r, upper) - count_less(l, r, lower);
+    }
+
+    /*
+     * select(value, kth)
+     * ------------------
+     * value の kth 回目の出現位置を返す。
+     * kth は 0-indexed。
+     * 存在しなければ -1 を返す。
+     *
+     * 使い方:
+     *   wm.select(5, 0); // 最初の 5 の位置
+     *   wm.select(5, 2); // 3 回目の 5 の位置
+     *
+     * 時間計算量:
+     *   O(log N * log^2 N)
+     *   ※ 出現位置を prefix rank に対する二分探索で求める
+     */
+    int select(const T& value, int kth) const {
+        if (kth < 0) return -1;
+        if (rank(value, n_) <= kth) return -1;
+
+        int lo = 0, hi = n_ - 1;
+        while (lo < hi) {
+            const int mid = lo + (hi - lo) / 2;
+            if (rank(value, mid + 1) >= kth + 1) hi = mid;
+            else lo = mid + 1;
+        }
+        return lo;
+    }
+
+    /*
+     * first_index_of(value)
+     * ---------------------
+     * value の最初の出現位置を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 使い方:
+     *   auto p = wm.first_index_of(5);
+     *
+     * 時間計算量:
+     *   O(log N * log^2 N)
+     */
+    std::optional<int> first_index_of(const T& value) const {
+        const int pos = select(value, 0);
+        if (pos < 0) return std::nullopt;
+        return pos;
+    }
+
+    /*
+     * last_index_of(value)
+     * --------------------
+     * value の最後の出現位置を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log N * log^2 N)
+     */
+    std::optional<int> last_index_of(const T& value) const {
+        const int c = count(value);
+        if (c == 0) return std::nullopt;
+        return select(value, c - 1);
+    }
+
+    /*
+     * kth_smallest(l, r, k)
+     * ---------------------
+     * 区間 [l, r) の k 番目に小さい値を返す。
+     * k は 0-indexed。
+     *
+     * 使い方:
+     *   auto x = wm.kth_smallest(2, 8, 0); // 最小値
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     *   ※ 値空間上で二分探索する
+     */
+    const T& kth_smallest(int l, int r, int k) const {
+        validate_range_(l, r);
+        if (k < 0 || k >= r - l) {
+            throw std::out_of_range("kth_smallest: k is out of range");
+        }
+        if (distinct_.empty()) {
+            throw std::out_of_range("kth_smallest: empty structure");
+        }
+
+        int lo = 0;
+        int hi = static_cast<int>(distinct_.size()) - 1;
+
+        while (lo < hi) {
+            const int mid = lo + (hi - lo) / 2;
+            auto it = distinct_.find_by_order(mid);
+            const T& val = *it;
+
+            if (count_less_equal(l, r, val) >= k + 1) hi = mid;
+            else lo = mid + 1;
+        }
+        return *distinct_.find_by_order(lo);
+    }
+
+    /*
+     * kth_largest(l, r, k)
+     * --------------------
+     * 区間 [l, r) の k 番目に大きい値を返す。
+     * k は 0-indexed。
+     *
+     * 使い方:
+     *   auto x = wm.kth_largest(2, 8, 0); // 最大値
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    const T& kth_largest(int l, int r, int k) const {
+        validate_range_(l, r);
+        if (k < 0 || k >= r - l) {
+            throw std::out_of_range("kth_largest: k is out of range");
+        }
+        return kth_smallest(l, r, (r - l - 1) - k);
+    }
+
+    /*
+     * quantile(l, r, k)
+     * -----------------
+     * kth_smallest の別名。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    const T& quantile(int l, int r, int k) const {
+        return kth_smallest(l, r, k);
+    }
+
+    /*
+     * min_value(l, r)
+     * ---------------
+     * 区間 [l, r) の最小値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> min_value(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_smallest(l, r, 0);
+    }
+
+    /*
+     * max_value(l, r)
+     * ---------------
+     * 区間 [l, r) の最大値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> max_value(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_largest(l, r, 0);
+    }
+
+    /*
+     * median_lower(l, r)
+     * ------------------
+     * 区間 [l, r) の下側中央値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 例:
+     *   [1,2,10,20] -> 2
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> median_lower(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_smallest(l, r, (r - l - 1) / 2);
+    }
+
+    /*
+     * median_upper(l, r)
+     * ------------------
+     * 区間 [l, r) の上側中央値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 例:
+     *   [1,2,10,20] -> 10
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> median_upper(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_smallest(l, r, (r - l) / 2);
+    }
+
+    /*
+     * next_value_ge(l, r, lower)
+     * --------------------------
+     * 区間 [l, r) において lower 以上の最小値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 使い方:
+     *   auto x = wm.next_value_ge(0, n, 50);
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> next_value_ge(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        const int smaller = count_less(l, r, lower);
+        if (smaller == r - l) return std::nullopt;
+        return kth_smallest(l, r, smaller);
+    }
+
+    /*
+     * next_value_gt(l, r, lower)
+     * --------------------------
+     * 区間 [l, r) において lower より大きい最小値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> next_value_gt(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        const int not_greater = count_less_equal(l, r, lower);
+        if (not_greater == r - l) return std::nullopt;
+        return kth_smallest(l, r, not_greater);
+    }
+
+    /*
+     * prev_value_lt(l, r, upper)
+     * --------------------------
+     * 区間 [l, r) において upper 未満の最大値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 使い方:
+     *   auto x = wm.prev_value_lt(0, n, 50);
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> prev_value_lt(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        const int smaller = count_less(l, r, upper);
+        if (smaller == 0) return std::nullopt;
+        return kth_smallest(l, r, smaller - 1);
+    }
+
+    /*
+     * prev_value_le(l, r, upper)
+     * --------------------------
+     * 区間 [l, r) において upper 以下の最大値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> prev_value_le(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        const int not_greater = count_less_equal(l, r, upper);
+        if (not_greater == 0) return std::nullopt;
+        return kth_smallest(l, r, not_greater - 1);
+    }
+
+    /*
+     * next_value(l, r, lower)
+     * -----------------------
+     * next_value_ge の別名。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> next_value(int l, int r, const T& lower) const {
+        return next_value_ge(l, r, lower);
+    }
+
+    /*
+     * prev_value(l, r, upper)
+     * -----------------------
+     * prev_value_lt の別名。
+     *
+     * 時間計算量:
+     *   O(log D * log^2 N)
+     */
+    std::optional<T> prev_value(int l, int r, const T& upper) const {
+        return prev_value_lt(l, r, upper);
+    }
+
+    /*
+     * list_frequencies(l, r)
+     * ----------------------
+     * 区間 [l, r) に現れる異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 使い方:
+     *   auto xs = wm.list_frequencies(0, n);
+     *
+     * 時間計算量:
+     *   O(D log^2 N)
+     */
+    std::vector<std::pair<T, int>> list_frequencies(int l, int r) const {
+        validate_range_(l, r);
+
+        std::vector<std::pair<T, int>> res;
+        res.reserve(distinct_.size());
+
+        for (auto it = distinct_.begin(); it != distinct_.end(); ++it) {
+            const int c = rank(*it, l, r);
+            if (c > 0) res.emplace_back(*it, c);
+        }
+        return res;
+    }
+
+    /*
+     * list_frequencies(l, r, lower, upper)
+     * ------------------------------------
+     * 区間 [l, r) について、値域 [lower, upper) に属する値を
+     * (値, 個数) で昇順列挙する。
+     *
+     * 使い方:
+     *   auto xs = wm.list_frequencies(0, n, 10, 20);
+     *
+     * 時間計算量:
+     *   O(K log^2 N)
+     *   K は [lower, upper) に含まれる異なる値の個数
+     */
+    std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const {
+        validate_range_(l, r);
+
+        std::vector<std::pair<T, int>> res;
+        if (!(lower < upper)) return res;
+
+        for (auto it = distinct_.lower_bound(lower); it != distinct_.end() && *it < upper; ++it) {
+            const int c = rank(*it, l, r);
+            if (c > 0) res.emplace_back(*it, c);
+        }
+        return res;
+    }
+
+    /*
+     * distinct_values(l, r)
+     * ---------------------
+     * 区間 [l, r) に現れる異なる値を昇順で返す。
+     *
+     * 使い方:
+     *   auto vals = wm.distinct_values(0, n);
+     *
+     * 時間計算量:
+     *   O(D log^2 N)
+     */
+    std::vector<T> distinct_values(int l, int r) const {
+        auto freq = list_frequencies(l, r);
+
+        std::vector<T> res;
+        res.reserve(freq.size());
+
+        for (const auto& [v, c] : freq) {
+            (void)c;
+            res.push_back(v);
+        }
+        return res;
+    }
+
+    /*
+     * top_k_frequent(l, r, k)
+     * -----------------------
+     * 区間 [l, r) における頻度上位 k 個の (値, 個数) を返す。
+     *
+     * 並び順:
+     *   1. 個数の降順
+     *   2. 値の昇順
+     *
+     * 使い方:
+     *   auto top = wm.top_k_frequent(0, n, 3);
+     *
+     * 時間計算量:
+     *   O(D log^2 N + D log D)
+     */
+    std::vector<std::pair<T, int>> top_k_frequent(int l, int r, int k) const {
+        validate_range_(l, r);
+        if (k <= 0 || l == r) return {};
+
+        auto freq = list_frequencies(l, r);
+        std::sort(freq.begin(), freq.end(), [](const auto& a, const auto& b) {
+            if (a.second != b.second) return a.second > b.second;
+            return a.first < b.first;
+        });
+
+        if (static_cast<int>(freq.size()) > k) {
+            freq.resize(k);
+        }
+        return freq;
+    }
+
+    /*
+     * mode(l, r)
+     * ----------
+     * 区間 [l, r) の最頻値を (値, 個数) で返す。
+     * 空区間なら std::nullopt。
+     *
+     * 使い方:
+     *   auto md = wm.mode(0, n);
+     *
+     * 時間計算量:
+     *   O(D log^2 N + D log D)
+     *   ※ top_k_frequent(..., 1) を利用
+     */
+    std::optional<std::pair<T, int>> mode(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+
+        auto top = top_k_frequent(l, r, 1);
+        if (top.empty()) return std::nullopt;
+        return top.front();
+    }
+
+private:
+    int n_ = 0;
+    std::vector<T> data_;
+
+    /*
+     * bit_[i]
+     * -------
+     * Fenwick Tree の i 番目ノード。
+     * 中には (value, position) を入れている。
+     *
+     * position を持たせる理由:
+     *   - 同じ value が複数回出ても区別できるようにするため
+     */
+    std::vector<OSTPair> bit_;
+
+    /*
+     * global_freq_
+     * ------------
+     * 配列全体での value の出現回数。
+     *
+     * 用途:
+     *   - contains
+     *   - distinct_ の管理
+     */
+    std::map<T, int> global_freq_;
+
+    /*
+     * distinct_
+     * ---------
+     * 現在配列内に存在する異なる値の集合。
+     *
+     * 用途:
+     *   - kth_smallest 系の値空間二分探索
+     *   - distinct_values / list_frequencies
+     */
+    OSTValue distinct_;
+
+    /*
+     * check_index_(i)
+     * ---------------
+     * 添字 i が有効かを検査する。
+     * 不正なら例外を投げる。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    void check_index_(int i) const {
+        if (i < 0 || i >= n_) {
+            throw std::out_of_range("index out of range");
+        }
+    }
+
+    /*
+     * validate_range_(l, r)
+     * ---------------------
+     * 区間 [l, r) が有効かを検査する。
+     * 不正なら例外を投げる。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    void validate_range_(int l, int r) const {
+        if (l < 0 || r < l || r > n_) {
+            throw std::out_of_range("invalid range");
+        }
+    }
+
+    /*
+     * add_global_(value, delta)
+     * -------------------------
+     * 配列全体での value の個数を delta だけ増減させる。
+     * 個数が 0 になったら distinct_ からも削除する。
+     *
+     * 使い方:
+     *   add_global_(x, +1);
+     *   add_global_(x, -1);
+     *
+     * 時間計算量:
+     *   O(log D)
+     */
+    void add_global_(const T& value, int delta) {
+        auto it = global_freq_.find(value);
+
+        if (delta > 0) {
+            if (it == global_freq_.end()) {
+                global_freq_[value] = delta;
+                distinct_.insert(value);
+            } else {
+                it->second += delta;
+            }
+        } else {
+            if (it == global_freq_.end()) return;
+
+            it->second += delta;
+            if (it->second == 0) {
+                distinct_.erase(value);
+                global_freq_.erase(it);
+            }
+        }
+    }
+
+    /*
+     * fenwick_insert_(pos, value)
+     * ---------------------------
+     * 位置 pos にある value を Fenwick Tree に追加する。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     *   ※ Fenwick の O(log N) 個ノードで木挿入 O(log N)
+     */
+    void fenwick_insert_(int pos, const T& value) {
+        for (int i = pos + 1; i <= n_; i += i & -i) {
+            bit_[i].insert({value, pos});
+        }
+    }
+
+    /*
+     * fenwick_erase_(pos, value)
+     * --------------------------
+     * 位置 pos にある value を Fenwick Tree から削除する。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    void fenwick_erase_(int pos, const T& value) {
+        for (int i = pos + 1; i <= n_; i += i & -i) {
+            bit_[i].erase({value, pos});
+        }
+    }
+
+    /*
+     * prefix_count_less_(r, value)
+     * ----------------------------
+     * prefix [0, r) において x < value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int prefix_count_less_(int r, const T& value) const {
+        int res = 0;
+        for (int i = r; i > 0; i -= i & -i) {
+            res += static_cast<int>(bit_[i].order_of_key({value, -1}));
+        }
+        return res;
+    }
+
+    /*
+     * prefix_count_less_equal_(r, value)
+     * ----------------------------------
+     * prefix [0, r) において x <= value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int prefix_count_less_equal_(int r, const T& value) const {
+        int res = 0;
+        for (int i = r; i > 0; i -= i & -i) {
+            res += static_cast<int>(
+                bit_[i].order_of_key({value, std::numeric_limits<int>::max()})
+            );
+        }
+        return res;
+    }
+
+    /*
+     * prefix_count_equal_(r, value)
+     * -----------------------------
+     * prefix [0, r) において x == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log^2 N)
+     */
+    int prefix_count_equal_(int r, const T& value) const {
+        return prefix_count_less_equal_(r, value) - prefix_count_less_(r, value);
+    }
+};
+
+/*
+ * こちらの名前でも使えるようにした別名。
+ *
+ * 使い方:
+ *   DynamicWaveletMatrix<int> wm(a);
+ */
