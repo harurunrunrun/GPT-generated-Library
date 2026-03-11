@@ -1,0 +1,1329 @@
+#pragma once
+
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <limits>
+#include <map>
+#include <optional>
+#include <stdexcept>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+
+/*
+ * DynamicSequenceWaveletMatrix
+ * ---------------------------
+ * 位置挿入・位置削除に対応した、Wavelet Matrix 風インターフェースの実用データ構造。
+ *
+ * 内部構造:
+ *   - sqrt decomposition (平方分割)
+ *   - 各ブロックについて
+ *       1. 元の順序配列 block
+ *       2. ソート済み配列 sorted
+ *     を両方持つ
+ *   - 全体の異なる値集合を pbds の order-statistics tree で管理
+ *
+ * できること:
+ *   - access / get / operator[]
+ *   - insert / erase / update / set / push_back / push_front / pop_back / pop_front
+ *   - rank / count / range_freq / count_less / count_less_equal / count_greater / count_greater_equal
+ *   - select
+ *   - kth_smallest / kth_largest / quantile
+ *   - min / max / median
+ *   - predecessor / successor
+ *   - list_frequencies / distinct_values / top_k_frequent / mode
+ *   - to_vector
+ *
+ * 注意:
+ *   - これは厳密な Dynamic Wavelet Matrix ではなく、
+ *     「位置挿入・削除ができて、Wavelet Matrix っぽいクエリを使える」実用版。
+ *   - 主要クエリはだいたい O(√N log N) 前後。
+ *   - mode / top_k_frequent / list_frequencies などは区間長依存でやや重い。
+ *
+ * コンパイル:
+ *   - g++ -std=gnu++17
+ *
+ * 記号:
+ *   - N: 現在の配列長
+ *   - B: 1 ブロックの目安サイズ
+ *   - D: 現在の異なる値の個数
+ */
+using namespace __gnu_pbds;
+
+template <class Key>
+using OrderedSet =
+    tree<Key, null_type, std::less<Key>, rb_tree_tag, tree_order_statistics_node_update>;
+
+template <class T, int BLOCK_SIZE = 700>
+class DynamicSequenceWaveletMatrix {
+private:
+    using OSTValue = OrderedSet<T>;
+
+public:
+    using value_type = T;
+
+    /*
+     * DynamicSequenceWaveletMatrix()
+     * -----------------------------
+     * 空の列を作る。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    DynamicSequenceWaveletMatrix() = default;
+
+    /*
+     * DynamicSequenceWaveletMatrix(data)
+     * ---------------------------------
+     * 初期配列 data から構築する。
+     *
+     * 使い方:
+     *   std::vector<int> a = {5,1,4,1,3};
+     *   DynamicSequenceWaveletMatrix<int> wm(a);
+     *
+     * 時間計算量:
+     *   O(N log N)
+     */
+    explicit DynamicSequenceWaveletMatrix(const std::vector<T>& data) {
+        build(data);
+    }
+
+    /*
+     * build(data)
+     * -----------
+     * data から再構築する。
+     *
+     * 使い方:
+     *   wm.build(a);
+     *
+     * 時間計算量:
+     *   O(N log N)
+     */
+    void build(const std::vector<T>& data) {
+        n_ = static_cast<int>(data.size());
+        blocks_.clear();
+        sorted_.clear();
+        global_freq_.clear();
+        distinct_.clear();
+
+        if (n_ == 0) return;
+
+        for (int i = 0; i < n_; i += BLOCK_SIZE) {
+            const int j = std::min(i + BLOCK_SIZE, n_);
+            blocks_.emplace_back(data.begin() + i, data.begin() + j);
+            sorted_.push_back(blocks_.back());
+            std::sort(sorted_.back().begin(), sorted_.back().end());
+        }
+
+        for (const auto& x : data) add_global_(x, +1);
+    }
+
+    /*
+     * size()
+     * ------
+     * 現在の配列長 N を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    int size() const { return n_; }
+
+    /*
+     * empty()
+     * -------
+     * 空かどうかを返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    bool empty() const { return n_ == 0; }
+
+    /*
+     * distinct_size()
+     * ---------------
+     * 現在存在する異なる値の個数 D を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    int distinct_size() const { return static_cast<int>(distinct_.size()); }
+
+    /*
+     * to_vector()
+     * -----------
+     * 現在の列を std::vector<T> として返す。
+     *
+     * 使い方:
+     *   auto v = wm.to_vector();
+     *
+     * 時間計算量:
+     *   O(N)
+     */
+    std::vector<T> to_vector() const {
+        std::vector<T> res;
+        res.reserve(n_);
+        for (const auto& block : blocks_) {
+            res.insert(res.end(), block.begin(), block.end());
+        }
+        return res;
+    }
+
+    /*
+     * access(i)
+     * ---------
+     * i 番目の値を返す。
+     *
+     * 使い方:
+     *   auto x = wm.access(3);
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    const T& access(int i) const {
+        check_index_(i);
+        auto [bid, off] = locate_(i);
+        return blocks_[bid][off];
+    }
+
+    /*
+     * get(i)
+     * ------
+     * access(i) の別名。
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    const T& get(int i) const {
+        return access(i);
+    }
+
+    /*
+     * operator[](i)
+     * -------------
+     * access(i) の別名。
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    const T& operator[](int i) const {
+        return access(i);
+    }
+
+    /*
+     * contains(value)
+     * ---------------
+     * value が列全体に 1 回以上出現するかを返す。
+     *
+     * 時間計算量:
+     *   O(log D)
+     */
+    bool contains(const T& value) const {
+        return global_freq_.find(value) != global_freq_.end();
+    }
+
+    /*
+     * push_back(value)
+     * ----------------
+     * 末尾に value を挿入する。
+     *
+     * 時間計算量:
+     *   ならし O(√N)
+     */
+    void push_back(const T& value) {
+        insert(n_, value);
+    }
+
+    /*
+     * push_front(value)
+     * -----------------
+     * 先頭に value を挿入する。
+     *
+     * 時間計算量:
+     *   ならし O(√N)
+     */
+    void push_front(const T& value) {
+        insert(0, value);
+    }
+
+    /*
+     * pop_back()
+     * ----------
+     * 末尾要素を削除して返す。
+     * 空なら例外。
+     *
+     * 時間計算量:
+     *   ならし O(√N)
+     */
+    T pop_back() {
+        if (empty()) throw std::out_of_range("pop_back: empty sequence");
+        return erase(n_ - 1);
+    }
+
+    /*
+     * pop_front()
+     * -----------
+     * 先頭要素を削除して返す。
+     * 空なら例外。
+     *
+     * 時間計算量:
+     *   ならし O(√N)
+     */
+    T pop_front() {
+        if (empty()) throw std::out_of_range("pop_front: empty sequence");
+        return erase(0);
+    }
+
+    /*
+     * insert(pos, value)
+     * ------------------
+     * 位置 pos に value を挿入する。
+     * pos は [0, N] を許す。
+     *
+     * 使い方:
+     *   wm.insert(3, 100); // 3 番目の前に挿入
+     *
+     * 時間計算量:
+     *   ならし O(√N)
+     */
+    void insert(int pos, const T& value) {
+        check_insert_pos_(pos);
+
+        if (blocks_.empty()) {
+            blocks_.push_back({value});
+            sorted_.push_back({value});
+            ++n_;
+            add_global_(value, +1);
+            return;
+        }
+
+        if (pos == n_) {
+            const int bid = static_cast<int>(blocks_.size()) - 1;
+            blocks_[bid].push_back(value);
+            auto it = std::lower_bound(sorted_[bid].begin(), sorted_[bid].end(), value);
+            sorted_[bid].insert(it, value);
+            ++n_;
+            add_global_(value, +1);
+            split_if_needed_(bid);
+            return;
+        }
+
+        auto [bid, off] = locate_(pos);
+        blocks_[bid].insert(blocks_[bid].begin() + off, value);
+        auto it = std::lower_bound(sorted_[bid].begin(), sorted_[bid].end(), value);
+        sorted_[bid].insert(it, value);
+        ++n_;
+        add_global_(value, +1);
+        split_if_needed_(bid);
+    }
+
+    /*
+     * erase(pos)
+     * ----------
+     * 位置 pos の要素を削除して返す。
+     *
+     * 使い方:
+     *   auto x = wm.erase(3);
+     *
+     * 時間計算量:
+     *   ならし O(√N)
+     */
+    T erase(int pos) {
+        check_index_(pos);
+        auto [bid, off] = locate_(pos);
+
+        T old = blocks_[bid][off];
+        blocks_[bid].erase(blocks_[bid].begin() + off);
+        erase_one_sorted_(bid, old);
+        --n_;
+        add_global_(old, -1);
+
+        cleanup_after_erase_(bid);
+        return old;
+    }
+
+    /*
+     * erase_range(l, r)
+     * -----------------
+     * 区間 [l, r) を削除する。
+     *
+     * 使い方:
+     *   wm.erase_range(2, 5);
+     *
+     * 時間計算量:
+     *   O((r-l)√N)
+     *   ※ erase を繰り返す実装
+     */
+    void erase_range(int l, int r) {
+        validate_range_(l, r);
+        for (int i = 0; i < r - l; ++i) erase(l);
+    }
+
+    /*
+     * update(i, value)
+     * ----------------
+     * i 番目の値を value に変更する。
+     *
+     * 使い方:
+     *   wm.update(4, 7);
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    void update(int i, const T& value) {
+        check_index_(i);
+        auto [bid, off] = locate_(i);
+        T old = blocks_[bid][off];
+        if (old == value) return;
+
+        blocks_[bid][off] = value;
+        erase_one_sorted_(bid, old);
+        auto it = std::lower_bound(sorted_[bid].begin(), sorted_[bid].end(), value);
+        sorted_[bid].insert(it, value);
+
+        add_global_(old, -1);
+        add_global_(value, +1);
+    }
+
+    /*
+     * set(i, value)
+     * -------------
+     * update(i, value) の別名。
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    void set(int i, const T& value) {
+        update(i, value);
+    }
+
+    /*
+     * assign(i, value)
+     * ----------------
+     * update(i, value) の別名。
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    void assign(int i, const T& value) {
+        update(i, value);
+    }
+
+    /*
+     * swap_values(i, j)
+     * -----------------
+     * i 番目と j 番目の値を交換する。
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    void swap_values(int i, int j) {
+        check_index_(i);
+        check_index_(j);
+        if (i == j) return;
+
+        auto [bi, oi] = locate_(i);
+        auto [bj, oj] = locate_(j);
+        T vi = blocks_[bi][oi];
+        T vj = blocks_[bj][oj];
+        if (vi == vj) return;
+
+        blocks_[bi][oi] = vj;
+        blocks_[bj][oj] = vi;
+        rebuild_sorted_(bi);
+        if (bi != bj) rebuild_sorted_(bj);
+    }
+
+    /*
+     * rank(value, r)
+     * --------------
+     * 区間 [0, r) における value の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.rank(5, 10);
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int rank(const T& value, int r) const {
+        if (r < 0) r = 0;
+        if (r > n_) r = n_;
+        return prefix_count_equal_(r, value);
+    }
+
+    /*
+     * rank(value, l, r)
+     * -----------------
+     * 区間 [l, r) における value の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.rank(5, 2, 8);
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int rank(const T& value, int l, int r) const {
+        if (l > r) std::swap(l, r);
+        l = std::max(l, 0);
+        r = std::min(r, n_);
+        return prefix_count_equal_(r, value) - prefix_count_equal_(l, value);
+    }
+
+    /*
+     * count(value)
+     * ------------
+     * 列全体における value の個数を返す。
+     *
+     * 時間計算量:
+     *   O(log D)
+     */
+    int count(const T& value) const {
+        auto it = global_freq_.find(value);
+        return it == global_freq_.end() ? 0 : it->second;
+    }
+
+    /*
+     * count(value, l, r)
+     * ------------------
+     * 区間 [l, r) における value の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int count(const T& value, int l, int r) const {
+        return rank(value, l, r);
+    }
+
+    /*
+     * count_less(l, r, upper)
+     * -----------------------
+     * 区間 [l, r) において x < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int count_less(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        return prefix_count_less_(r, upper) - prefix_count_less_(l, upper);
+    }
+
+    /*
+     * count_less_equal(l, r, upper)
+     * -----------------------------
+     * 区間 [l, r) において x <= upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int count_less_equal(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        return prefix_count_less_equal_(r, upper) - prefix_count_less_equal_(l, upper);
+    }
+
+    /*
+     * count_greater(l, r, lower)
+     * --------------------------
+     * 区間 [l, r) において x > lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int count_greater(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        return (r - l) - count_less_equal(l, r, lower);
+    }
+
+    /*
+     * count_greater_equal(l, r, lower)
+     * --------------------------------
+     * 区間 [l, r) において x >= lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int count_greater_equal(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        return (r - l) - count_less(l, r, lower);
+    }
+
+    /*
+     * range_freq(l, r, upper)
+     * -----------------------
+     * 区間 [l, r) において x < upper の個数を返す。
+     * count_less の別名。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int range_freq(int l, int r, const T& upper) const {
+        return count_less(l, r, upper);
+    }
+
+    /*
+     * range_freq(l, r, lower, upper)
+     * ------------------------------
+     * 区間 [l, r) において lower <= x < upper の個数を返す。
+     *
+     * 使い方:
+     *   int c = wm.range_freq(0, n, 10, 20);
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int range_freq(int l, int r, const T& lower, const T& upper) const {
+        validate_range_(l, r);
+        if (!(lower < upper)) return 0;
+        return count_less(l, r, upper) - count_less(l, r, lower);
+    }
+
+    /*
+     * select(value, kth)
+     * ------------------
+     * value の kth 回目の出現位置を返す。
+     * kth は 0-indexed。存在しなければ -1。
+     *
+     * 使い方:
+     *   wm.select(5, 0); // 最初の 5 の位置
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int select(const T& value, int kth) const {
+        if (kth < 0) return -1;
+        if (count(value) <= kth) return -1;
+
+        int pos = 0;
+        for (size_t b = 0; b < blocks_.size(); ++b) {
+            const int c = count_in_block_(static_cast<int>(b), value);
+            if (kth >= c) {
+                kth -= c;
+                pos += static_cast<int>(blocks_[b].size());
+                continue;
+            }
+            for (int i = 0; i < static_cast<int>(blocks_[b].size()); ++i) {
+                if (blocks_[b][i] == value) {
+                    if (kth == 0) return pos + i;
+                    --kth;
+                }
+            }
+            return -1;
+        }
+        return -1;
+    }
+
+    /*
+     * select_in_range(value, l, r, kth)
+     * ---------------------------------
+     * 区間 [l, r) の中で、value の kth 回目の出現位置を返す。
+     * kth は 0-indexed。存在しなければ -1。
+     *
+     * 使い方:
+     *   wm.select_in_range(5, 2, 10, 1);
+     *
+     * 時間計算量:
+     *   O(log N * √N log N)
+     *   ※ rank に対する位置二分探索
+     */
+    int select_in_range(const T& value, int l, int r, int kth) const {
+        validate_range_(l, r);
+        if (kth < 0) return -1;
+        if (rank(value, l, r) <= kth) return -1;
+
+        int lo = l, hi = r - 1;
+        while (lo < hi) {
+            const int mid = lo + (hi - lo) / 2;
+            if (rank(value, l, mid + 1) >= kth + 1) hi = mid;
+            else lo = mid + 1;
+        }
+        return lo;
+    }
+
+    /*
+     * first_index_of(value)
+     * ---------------------
+     * value の最初の出現位置を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    std::optional<int> first_index_of(const T& value) const {
+        int p = select(value, 0);
+        if (p < 0) return std::nullopt;
+        return p;
+    }
+
+    /*
+     * last_index_of(value)
+     * --------------------
+     * value の最後の出現位置を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    std::optional<int> last_index_of(const T& value) const {
+        int c = count(value);
+        if (c == 0) return std::nullopt;
+        int p = select(value, c - 1);
+        if (p < 0) return std::nullopt;
+        return p;
+    }
+
+    /*
+     * kth_smallest(l, r, k)
+     * ---------------------
+     * 区間 [l, r) の k 番目に小さい値を返す。
+     * k は 0-indexed。
+     *
+     * 使い方:
+     *   auto x = wm.kth_smallest(2, 8, 0); // 最小値
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    const T& kth_smallest(int l, int r, int k) const {
+        validate_range_(l, r);
+        if (k < 0 || k >= r - l) {
+            throw std::out_of_range("kth_smallest: k is out of range");
+        }
+        if (distinct_.empty()) {
+            throw std::out_of_range("kth_smallest: empty structure");
+        }
+
+        int lo = 0;
+        int hi = static_cast<int>(distinct_.size()) - 1;
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            const T& v = *distinct_.find_by_order(mid);
+            if (count_less_equal(l, r, v) >= k + 1) hi = mid;
+            else lo = mid + 1;
+        }
+        return *distinct_.find_by_order(lo);
+    }
+
+    /*
+     * kth_largest(l, r, k)
+     * --------------------
+     * 区間 [l, r) の k 番目に大きい値を返す。
+     * k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    const T& kth_largest(int l, int r, int k) const {
+        validate_range_(l, r);
+        if (k < 0 || k >= r - l) {
+            throw std::out_of_range("kth_largest: k is out of range");
+        }
+        return kth_smallest(l, r, (r - l - 1) - k);
+    }
+
+    /*
+     * quantile(l, r, k)
+     * -----------------
+     * kth_smallest の別名。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    const T& quantile(int l, int r, int k) const {
+        return kth_smallest(l, r, k);
+    }
+
+    /*
+     * min_value(l, r)
+     * ---------------
+     * 区間 [l, r) の最小値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> min_value(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_smallest(l, r, 0);
+    }
+
+    /*
+     * max_value(l, r)
+     * ---------------
+     * 区間 [l, r) の最大値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> max_value(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_largest(l, r, 0);
+    }
+
+    /*
+     * median_lower(l, r)
+     * ------------------
+     * 区間 [l, r) の下側中央値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 例:
+     *   [1,2,10,20] -> 2
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> median_lower(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_smallest(l, r, (r - l - 1) / 2);
+    }
+
+    /*
+     * median_upper(l, r)
+     * ------------------
+     * 区間 [l, r) の上側中央値を返す。
+     * 空区間なら std::nullopt。
+     *
+     * 例:
+     *   [1,2,10,20] -> 10
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> median_upper(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        return kth_smallest(l, r, (r - l) / 2);
+    }
+
+    /*
+     * next_value_ge(l, r, lower)
+     * --------------------------
+     * 区間 [l, r) において lower 以上の最小値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> next_value_ge(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        int c = count_less(l, r, lower);
+        if (c == r - l) return std::nullopt;
+        return kth_smallest(l, r, c);
+    }
+
+    /*
+     * next_value_gt(l, r, lower)
+     * --------------------------
+     * 区間 [l, r) において lower より大きい最小値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> next_value_gt(int l, int r, const T& lower) const {
+        validate_range_(l, r);
+        int c = count_less_equal(l, r, lower);
+        if (c == r - l) return std::nullopt;
+        return kth_smallest(l, r, c);
+    }
+
+    /*
+     * prev_value_lt(l, r, upper)
+     * --------------------------
+     * 区間 [l, r) において upper 未満の最大値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> prev_value_lt(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        int c = count_less(l, r, upper);
+        if (c == 0) return std::nullopt;
+        return kth_smallest(l, r, c - 1);
+    }
+
+    /*
+     * prev_value_le(l, r, upper)
+     * --------------------------
+     * 区間 [l, r) において upper 以下の最大値を返す。
+     * 存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> prev_value_le(int l, int r, const T& upper) const {
+        validate_range_(l, r);
+        int c = count_less_equal(l, r, upper);
+        if (c == 0) return std::nullopt;
+        return kth_smallest(l, r, c - 1);
+    }
+
+    /*
+     * next_value(l, r, lower)
+     * -----------------------
+     * next_value_ge の別名。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> next_value(int l, int r, const T& lower) const {
+        return next_value_ge(l, r, lower);
+    }
+
+    /*
+     * prev_value(l, r, upper)
+     * -----------------------
+     * prev_value_lt の別名。
+     *
+     * 時間計算量:
+     *   O(log D * √N log N)
+     */
+    std::optional<T> prev_value(int l, int r, const T& upper) const {
+        return prev_value_lt(l, r, upper);
+    }
+
+    /*
+     * list_frequencies(l, r)
+     * ----------------------
+     * 区間 [l, r) に現れる異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 使い方:
+     *   auto xs = wm.list_frequencies(0, wm.size());
+     *
+     * 時間計算量:
+     *   O((r-l) log(r-l) + √N)
+     */
+    std::vector<std::pair<T, int>> list_frequencies(int l, int r) const {
+        validate_range_(l, r);
+        auto vals = collect_range_(l, r);
+        std::map<T, int> mp;
+        for (const auto& x : vals) ++mp[x];
+
+        std::vector<std::pair<T, int>> res;
+        res.reserve(mp.size());
+        for (const auto& kv : mp) res.push_back(kv);
+        return res;
+    }
+
+    /*
+     * list_frequencies(l, r, lower, upper)
+     * ------------------------------------
+     * 区間 [l, r) について、値域 [lower, upper) に属する値を
+     * (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O((r-l) log(r-l) + √N)
+     */
+    std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const {
+        validate_range_(l, r);
+        std::vector<std::pair<T, int>> res;
+        if (!(lower < upper)) return res;
+
+        auto vals = collect_range_(l, r);
+        std::map<T, int> mp;
+        for (const auto& x : vals) {
+            if (!(x < lower) && x < upper) ++mp[x];
+        }
+        res.reserve(mp.size());
+        for (const auto& kv : mp) res.push_back(kv);
+        return res;
+    }
+
+    /*
+     * distinct_values(l, r)
+     * ---------------------
+     * 区間 [l, r) に現れる異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   O((r-l) log(r-l) + √N)
+     */
+    std::vector<T> distinct_values(int l, int r) const {
+        auto freq = list_frequencies(l, r);
+        std::vector<T> res;
+        res.reserve(freq.size());
+        for (const auto& [v, c] : freq) {
+            (void)c;
+            res.push_back(v);
+        }
+        return res;
+    }
+
+    /*
+     * top_k_frequent(l, r, k)
+     * -----------------------
+     * 区間 [l, r) で頻度上位 k 個の (値, 個数) を返す。
+     *
+     * 並び順:
+     *   1. 個数の降順
+     *   2. 値の昇順
+     *
+     * 使い方:
+     *   auto top = wm.top_k_frequent(0, wm.size(), 3);
+     *
+     * 時間計算量:
+     *   O((r-l) log(r-l) + M log M + √N)
+     *   M は区間内の異なる値の個数
+     */
+    std::vector<std::pair<T, int>> top_k_frequent(int l, int r, int k) const {
+        validate_range_(l, r);
+        if (k <= 0 || l == r) return {};
+
+        auto freq = list_frequencies(l, r);
+        std::sort(freq.begin(), freq.end(), [](const auto& a, const auto& b) {
+            if (a.second != b.second) return a.second > b.second;
+            return a.first < b.first;
+        });
+        if (static_cast<int>(freq.size()) > k) freq.resize(k);
+        return freq;
+    }
+
+    /*
+     * mode(l, r)
+     * ----------
+     * 区間 [l, r) の最頻値を (値, 個数) で返す。
+     * 空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O((r-l) log(r-l) + M log M + √N)
+     */
+    std::optional<std::pair<T, int>> mode(int l, int r) const {
+        validate_range_(l, r);
+        if (l == r) return std::nullopt;
+        auto top = top_k_frequent(l, r, 1);
+        if (top.empty()) return std::nullopt;
+        return top.front();
+    }
+
+private:
+    int n_ = 0;
+    std::vector<std::vector<T>> blocks_;
+    std::vector<std::vector<T>> sorted_;
+    std::map<T, int> global_freq_;
+    OSTValue distinct_;
+
+    /*
+     * check_index_(i)
+     * ---------------
+     * 添字 i が有効か検査する。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    void check_index_(int i) const {
+        if (i < 0 || i >= n_) {
+            throw std::out_of_range("index out of range");
+        }
+    }
+
+    /*
+     * check_insert_pos_(pos)
+     * ----------------------
+     * 挿入位置 pos が有効か検査する。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    void check_insert_pos_(int pos) const {
+        if (pos < 0 || pos > n_) {
+            throw std::out_of_range("insert position out of range");
+        }
+    }
+
+    /*
+     * validate_range_(l, r)
+     * ---------------------
+     * 区間 [l, r) が有効か検査する。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    void validate_range_(int l, int r) const {
+        if (l < 0 || r < l || r > n_) {
+            throw std::out_of_range("invalid range");
+        }
+    }
+
+    /*
+     * add_global_(value, delta)
+     * -------------------------
+     * value の全体出現回数を delta だけ増減させる。
+     * 0 になったら distinct_ からも消す。
+     *
+     * 時間計算量:
+     *   O(log D)
+     */
+    void add_global_(const T& value, int delta) {
+        auto it = global_freq_.find(value);
+        if (delta > 0) {
+            if (it == global_freq_.end()) {
+                global_freq_[value] = delta;
+                distinct_.insert(value);
+            } else {
+                it->second += delta;
+            }
+        } else {
+            if (it == global_freq_.end()) return;
+            it->second += delta;
+            if (it->second == 0) {
+                distinct_.erase(value);
+                global_freq_.erase(it);
+            }
+        }
+    }
+
+    /*
+     * locate_(pos)
+     * ------------
+     * 全体位置 pos が、どのブロックの何番目かを返す。
+     * pos は [0, N-1] を想定。
+     *
+     * 戻り値:
+     *   {block_id, offset_in_block}
+     *
+     * 時間計算量:
+     *   O(√N)
+     */
+    std::pair<int, int> locate_(int pos) const {
+        int cur = 0;
+        for (int b = 0; b < static_cast<int>(blocks_.size()); ++b) {
+            const int sz = static_cast<int>(blocks_[b].size());
+            if (pos < cur + sz) return {b, pos - cur};
+            cur += sz;
+        }
+        return {static_cast<int>(blocks_.size()) - 1, static_cast<int>(blocks_.back().size())};
+    }
+
+    /*
+     * rebuild_sorted_(bid)
+     * --------------------
+     * ブロック bid の sorted 版を作り直す。
+     *
+     * 時間計算量:
+     *   O(B log B)
+     */
+    void rebuild_sorted_(int bid) {
+        sorted_[bid] = blocks_[bid];
+        std::sort(sorted_[bid].begin(), sorted_[bid].end());
+    }
+
+    /*
+     * erase_one_sorted_(bid, value)
+     * -----------------------------
+     * sorted_[bid] から value を 1 個だけ削除する。
+     *
+     * 時間計算量:
+     *   O(B)
+     */
+    void erase_one_sorted_(int bid, const T& value) {
+        auto it = std::lower_bound(sorted_[bid].begin(), sorted_[bid].end(), value);
+        if (it == sorted_[bid].end() || *it != value) {
+            throw std::logic_error("erase_one_sorted_: value not found");
+        }
+        sorted_[bid].erase(it);
+    }
+
+    /*
+     * split_if_needed_(bid)
+     * ---------------------
+     * ブロックが大きすぎるとき 2 分割する。
+     *
+     * 時間計算量:
+     *   O(B log B)
+     */
+    void split_if_needed_(int bid) {
+        if (bid < 0 || bid >= static_cast<int>(blocks_.size())) return;
+        if (static_cast<int>(blocks_[bid].size()) <= 2 * BLOCK_SIZE) return;
+
+        const int mid = static_cast<int>(blocks_[bid].size()) / 2;
+        std::vector<T> right(blocks_[bid].begin() + mid, blocks_[bid].end());
+        blocks_[bid].erase(blocks_[bid].begin() + mid, blocks_[bid].end());
+
+        rebuild_sorted_(bid);
+
+        blocks_.insert(blocks_.begin() + bid + 1, std::move(right));
+        sorted_.insert(sorted_.begin() + bid + 1, blocks_[bid + 1]);
+        std::sort(sorted_[bid + 1].begin(), sorted_[bid + 1].end());
+    }
+
+    /*
+     * cleanup_after_erase_(bid)
+     * -------------------------
+     * erase 後に空ブロック削除や小ブロックの結合を行う。
+     *
+     * 時間計算量:
+     *   ならし O(B log B)
+     */
+    void cleanup_after_erase_(int bid) {
+        if (blocks_.empty()) return;
+
+        if (bid >= static_cast<int>(blocks_.size())) bid = static_cast<int>(blocks_.size()) - 1;
+        if (bid < 0) return;
+
+        if (blocks_[bid].empty()) {
+            blocks_.erase(blocks_.begin() + bid);
+            sorted_.erase(sorted_.begin() + bid);
+            return;
+        }
+
+        if (bid + 1 < static_cast<int>(blocks_.size()) &&
+            static_cast<int>(blocks_[bid].size() + blocks_[bid + 1].size()) <= BLOCK_SIZE) {
+            blocks_[bid].insert(blocks_[bid].end(), blocks_[bid + 1].begin(), blocks_[bid + 1].end());
+            rebuild_sorted_(bid);
+            blocks_.erase(blocks_.begin() + bid + 1);
+            sorted_.erase(sorted_.begin() + bid + 1);
+            return;
+        }
+
+        if (bid - 1 >= 0 &&
+            static_cast<int>(blocks_[bid - 1].size() + blocks_[bid].size()) <= BLOCK_SIZE) {
+            blocks_[bid - 1].insert(blocks_[bid - 1].end(), blocks_[bid].begin(), blocks_[bid].end());
+            rebuild_sorted_(bid - 1);
+            blocks_.erase(blocks_.begin() + bid);
+            sorted_.erase(sorted_.begin() + bid);
+        }
+    }
+
+    /*
+     * count_in_block_(bid, value)
+     * ---------------------------
+     * ブロック bid における value の個数を返す。
+     *
+     * 時間計算量:
+     *   O(log B)
+     */
+    int count_in_block_(int bid, const T& value) const {
+        auto range = std::equal_range(sorted_[bid].begin(), sorted_[bid].end(), value);
+        return static_cast<int>(range.second - range.first);
+    }
+
+    /*
+     * prefix_count_less_(r, value)
+     * ----------------------------
+     * prefix [0, r) において x < value の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int prefix_count_less_(int r, const T& value) const {
+        int cur = 0;
+        int res = 0;
+        for (int b = 0; b < static_cast<int>(blocks_.size()); ++b) {
+            const int sz = static_cast<int>(blocks_[b].size());
+            if (cur + sz <= r) {
+                res += static_cast<int>(std::lower_bound(sorted_[b].begin(), sorted_[b].end(), value) - sorted_[b].begin());
+            } else if (cur < r) {
+                const int take = r - cur;
+                for (int i = 0; i < take; ++i) {
+                    if (blocks_[b][i] < value) ++res;
+                }
+                break;
+            } else {
+                break;
+            }
+            cur += sz;
+        }
+        return res;
+    }
+
+    /*
+     * prefix_count_less_equal_(r, value)
+     * ----------------------------------
+     * prefix [0, r) において x <= value の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int prefix_count_less_equal_(int r, const T& value) const {
+        int cur = 0;
+        int res = 0;
+        for (int b = 0; b < static_cast<int>(blocks_.size()); ++b) {
+            const int sz = static_cast<int>(blocks_[b].size());
+            if (cur + sz <= r) {
+                res += static_cast<int>(std::upper_bound(sorted_[b].begin(), sorted_[b].end(), value) - sorted_[b].begin());
+            } else if (cur < r) {
+                const int take = r - cur;
+                for (int i = 0; i < take; ++i) {
+                    if (!(value < blocks_[b][i])) ++res;
+                }
+                break;
+            } else {
+                break;
+            }
+            cur += sz;
+        }
+        return res;
+    }
+
+    /*
+     * prefix_count_equal_(r, value)
+     * -----------------------------
+     * prefix [0, r) において x == value の個数を返す。
+     *
+     * 時間計算量:
+     *   O(√N log N)
+     */
+    int prefix_count_equal_(int r, const T& value) const {
+        return prefix_count_less_equal_(r, value) - prefix_count_less_(r, value);
+    }
+
+    /*
+     * collect_range_(l, r)
+     * --------------------
+     * 区間 [l, r) の要素を順序付きで vector に取り出す。
+     *
+     * 時間計算量:
+     *   O((r-l) + √N)
+     */
+    std::vector<T> collect_range_(int l, int r) const {
+        validate_range_(l, r);
+        std::vector<T> res;
+        res.reserve(r - l);
+        if (l == r) return res;
+
+        int cur = 0;
+        for (int b = 0; b < static_cast<int>(blocks_.size()); ++b) {
+            const int sz = static_cast<int>(blocks_[b].size());
+            const int L = std::max(l, cur);
+            const int R = std::min(r, cur + sz);
+            if (L < R) {
+                for (int i = L - cur; i < R - cur; ++i) res.push_back(blocks_[b][i]);
+            }
+            cur += sz;
+            if (cur >= r) break;
+        }
+        return res;
+    }
+};
+
+template <class T, int BLOCK_SIZE = 700>
+using DynamicWaveletMatrixSequence = DynamicSequenceWaveletMatrix<T, BLOCK_SIZE>;
+
+/*
+ * 最小使用例:
+ *
+ *   #include <iostream>
+ *   #include "dynamic_sequence_Wavelet_matrix.hpp"
+ *
+ *   int main() {
+ *       std::vector<int> a = {5, 1, 4, 1, 3, 5, 2, 6, 5, 1};
+ *       DynamicSequenceWaveletMatrix<int> wm(a);
+ *
+ *       wm.insert(3, 10);           // 位置 3 に 10 を挿入
+ *       wm.erase(5);                // 位置 5 を削除
+ *       wm.update(0, 7);            // 位置 0 を 7 に変更
+ *
+ *       std::cout << wm.rank(5, 0, wm.size()) << "\n";
+ *       std::cout << wm.kth_smallest(0, wm.size(), 2) << "\n";
+ *
+ *       auto md = wm.mode(0, wm.size());
+ *       if (md) {
+ *           std::cout << md->first << " " << md->second << "\n";
+ *       }
+ *   }
+ */
