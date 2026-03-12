@@ -1,0 +1,264 @@
+// depends on https://nyaannyaan.github.io/library/rbst/lazy-reversible-rbst.hpp.html
+
+#include <bits/stdc++.h>
+using namespace std;
+
+// #include "rbst/lazy-reversible-rbst.hpp"
+
+// ========================================
+// 1. Range Add / Range Sum
+// ========================================
+namespace range_add_range_sum {
+
+struct T {
+  long long sum;
+  int len;
+
+  T(long long sum_ = 0, int len_ = 0) : sum(sum_), len(len_) {}
+};
+
+using E = long long;
+
+/*
+ * O(1)
+ * 2 つの区間情報をマージする。
+ * 左区間 a と右区間 b を連結した区間情報を返す。
+ */
+T f(T a, T b) {
+  return T(a.sum + b.sum, a.len + b.len);
+}
+
+/*
+ * O(1)
+ * 区間全体に +x を作用させる。
+ * sum には len 個ぶん寄与するので sum += x * len とする。
+ */
+T g(T a, E x) {
+  return T(a.sum + x * a.len, a.len);
+}
+
+/*
+ * O(1)
+ * 遅延作用の合成を行う。
+ * 「+a」のあとに「+b」を作用させると全体で「+(a+b)」になる。
+ */
+E h(E a, E b) {
+  return a + b;
+}
+
+/*
+ * O(1)
+ * 区間を反転したときの集約値を返す。
+ * 区間和は順序に依存しないのでそのままでよい。
+ */
+T ts(T a) {
+  return a;
+}
+
+/*
+ * O(1)
+ * 1 要素 x から葉ノード用の値を作る。
+ */
+T make_value(long long x) {
+  return T(x, 1);
+}
+
+using RBST = LazyReversibleRBST<T, E, f, g, h, ts>;
+
+}  // namespace range_add_range_sum
+
+using RangeAddRangeSumRBST = range_add_range_sum::RBST;
+
+
+// ========================================
+// 2. Range Add / Range Min
+// ========================================
+namespace range_add_range_min {
+
+static constexpr long long INF = (1LL << 60);
+
+struct T {
+  long long mn;
+
+  T(long long mn_ = INF) : mn(mn_) {}
+};
+
+using E = long long;
+
+/*
+ * O(1)
+ * 2 つの区間の最小値をマージする。
+ * 連結後の区間最小値は min(a.mn, b.mn)。
+ */
+T f(T a, T b) {
+  return T(min(a.mn, b.mn));
+}
+
+/*
+ * O(1)
+ * 区間全体に +x を作用させる。
+ * 区間最小値も一様に x だけ増える。
+ */
+T g(T a, E x) {
+  return T(a.mn + x);
+}
+
+/*
+ * O(1)
+ * 遅延作用の合成を行う。
+ * 「+a」のあとに「+b」を作用させると全体で「+(a+b)」になる。
+ */
+E h(E a, E b) {
+  return a + b;
+}
+
+/*
+ * O(1)
+ * 区間を反転したときの集約値を返す。
+ * 区間最小値は順序に依存しないのでそのままでよい。
+ */
+T ts(T a) {
+  return a;
+}
+
+/*
+ * O(1)
+ * 1 要素 x から葉ノード用の値を作る。
+ */
+T make_value(long long x) {
+  return T(x);
+}
+
+using RBST = LazyReversibleRBST<T, E, f, g, h, ts>;
+
+}  // namespace range_add_range_min
+
+using RangeAddRangeMinRBST = range_add_range_min::RBST;
+
+
+// ========================================
+// 3. Reversible String Hash
+//    反転付き文字列管理用
+//    apply は使わない想定
+// ========================================
+namespace reversible_string_hash {
+
+using u64 = unsigned long long;
+
+inline constexpr u64 HASH_BASE = 1000003ULL;
+inline vector<u64> HASH_POW;
+
+/*
+ * O(max_len)
+ * HASH_POW[i] = BASE^i を前計算する。
+ * build や insert の前に、想定される最大長まで一度用意しておく。
+ */
+void init_hash_pow(int max_len) {
+  HASH_POW.assign(max_len + 1, 1);
+  for (int i = 1; i <= max_len; i++) {
+    HASH_POW[i] = HASH_POW[i - 1] * HASH_BASE;
+  }
+}
+
+struct T {
+  u64 fw;   // 前向きハッシュ
+  u64 bw;   // 逆向きハッシュ
+  int len;  // 区間長
+
+  T(u64 fw_ = 0, u64 bw_ = 0, int len_ = 0) : fw(fw_), bw(bw_), len(len_) {}
+};
+
+using E = int;  // ダミー。apply は使わない想定。
+
+/*
+ * O(1)
+ * 2 つの区間ハッシュを連結する。
+ * a + b の前向きハッシュと逆向きハッシュを作る。
+ *
+ * 前向き: hash(a + b) = a.fw * BASE^{|b|} + b.fw
+ * 逆向き: rev(a + b) = rev(b) + rev(a) なので
+ *         hash_rev(a + b) = b.bw * BASE^{|a|} + a.bw
+ */
+T f(T a, T b) {
+  return T(
+      a.fw * HASH_POW[b.len] + b.fw,
+      b.bw * HASH_POW[a.len] + a.bw,
+      a.len + b.len
+  );
+}
+
+/*
+ * O(1)
+ * この用途では lazy update を使わないため何もしない。
+ * apply を呼ばない前提のダミー実装。
+ */
+T g(T a, E) {
+  return a;
+}
+
+/*
+ * O(1)
+ * この用途では lazy update を使わないため常に単位元を返す。
+ */
+E h(E, E) {
+  return 0;
+}
+
+/*
+ * O(1)
+ * 区間を反転したときの集約値を返す。
+ * 前向きハッシュと逆向きハッシュを入れ替えればよい。
+ */
+T ts(T a) {
+  swap(a.fw, a.bw);
+  return a;
+}
+
+/*
+ * O(1)
+ * 1 文字 c から葉ノード用の値を作る。
+ * 1 文字区間では前向き・逆向きハッシュは同じ。
+ */
+T make_value(char c) {
+  u64 x = static_cast<unsigned char>(c) + 1;
+  return T(x, x, 1);
+}
+
+using RBST = LazyReversibleRBST<T, E, f, g, h, ts>;
+
+}  // namespace reversible_string_hash
+
+using ReversibleStringHashRBST = reversible_string_hash::RBST;
+
+
+/*
+// Range Add / Range Sum
+RangeAddRangeSumRBST rbst1;
+RangeAddRangeSumRBST::Ptr root1 = nullptr;
+vector<range_add_range_sum::T> v1;
+for (long long x : {1, 2, 3, 4, 5}) {
+  v1.push_back(range_add_range_sum::make_value(x));
+}
+root1 = rbst1.build(v1);
+
+// Range Add / Range Min
+RangeAddRangeMinRBST rbst2;
+RangeAddRangeMinRBST::Ptr root2 = nullptr;
+vector<range_add_range_min::T> v2;
+for (long long x : {5, 2, 8, 1, 7}) {
+  v2.push_back(range_add_range_min::make_value(x));
+}
+root2 = rbst2.build(v2);
+
+// String Hash
+reversible_string_hash::init_hash_pow(200000);
+ReversibleStringHashRBST rbst3;
+ReversibleStringHashRBST::Ptr root3 = nullptr;
+string s = "abcde";
+vector<reversible_string_hash::T> v3;
+for (char c : s) {
+  v3.push_back(reversible_string_hash::make_value(c));
+}
+root3 = rbst3.build(v3);
+
+*/
