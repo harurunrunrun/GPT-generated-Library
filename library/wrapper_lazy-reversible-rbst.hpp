@@ -12,6 +12,448 @@ using namespace std;
 
 // #include "rbst/lazy-reversible-rbst.hpp"
 
+template <typename T, typename E,
+          T (*f)(T, T), T (*g)(T, E), E (*h)(E, E), T (*ts)(T)>
+struct LazyRBSTSequence : LazyReversibleRBST<T, E, f, g, h, ts> {
+  using Tree = LazyReversibleRBST<T, E, f, g, h, ts>;
+  using Base = typename Tree::base;
+  using Node = typename Tree::Node;
+  using Ptr = typename Tree::Ptr;
+
+  using Tree::merge;
+  using Tree::split;
+
+  Ptr root = nullptr;
+
+  LazyRBSTSequence() = default;
+  LazyRBSTSequence(const vector<T>& v) { assign(v); }
+
+  LazyRBSTSequence(const LazyRBSTSequence&) = delete;
+  LazyRBSTSequence& operator=(const LazyRBSTSequence&) = delete;
+
+  LazyRBSTSequence(LazyRBSTSequence&& other) noexcept : root(other.root) {
+    other.root = nullptr;
+  }
+
+  LazyRBSTSequence& operator=(LazyRBSTSequence&& other) noexcept {
+    if (this != &other) {
+      clear();
+      root = other.root;
+      other.root = nullptr;
+    }
+    return *this;
+  }
+
+  ~LazyRBSTSequence() { clear(); }
+
+  /*
+   * O(1)
+   * 現在の要素数を返す。
+   */
+  int size() const { return Base::size(root); }
+
+  /*
+   * O(1)
+   * 空かどうかを返す。
+   */
+  bool empty() const { return root == nullptr; }
+
+  /*
+   * O(N)
+   * 木全体を破棄して空にする。
+   * 使い終わった木のメモリを解放する。
+   */
+  void clear() {
+    destroy(root);
+    root = nullptr;
+  }
+
+  /*
+   * O(N)
+   * ベクタ v の内容で木を作り直す。
+   * 以前の内容は破棄される。
+   */
+  void assign(const vector<T>& v) {
+    clear();
+    if (!v.empty()) root = Base::build(v);
+  }
+
+  /*
+   * O(1)
+   * 列全体の集約値を返す。
+   * 空列なら T() を返す。
+   */
+  T all_prod() const { return root ? root->sum : T(); }
+
+  /*
+   * O(log N)
+   * 区間 [l, r) の集約値を返す。
+   * 例: 区間和、区間最小値、区間ハッシュなど。
+   */
+  T prod(int l, int r) {
+    assert(0 <= l && l <= r && r <= size());
+    return Tree::fold(root, l, r);
+  }
+
+  /*
+   * O(log N)
+   * 区間 [l, r) に作用 x をまとめて適用する。
+   * 例: 区間加算、区間 affine 変換など。
+   */
+  void apply(int l, int r, const E& x) {
+    assert(0 <= l && l <= r && r <= size());
+    Tree::apply(root, l, r, x);
+  }
+
+  /*
+   * O(1)
+   * 列全体に作用 x を適用する。
+   * 全体更新だけしたいときの簡易版。
+   */
+  void apply_all(const E& x) {
+    if (root) Tree::propagate(root, x);
+  }
+
+  /*
+   * O(log N)
+   * 区間 [l, r) を反転する。
+   */
+  void reverse(int l, int r) {
+    assert(0 <= l && l <= r && r <= size());
+    Tree::reverse(root, l, r);
+  }
+
+  /*
+   * O(1)
+   * 列全体を反転する。
+   */
+  void reverse_all() { Tree::toggle(root); }
+
+  /*
+   * O(log N)
+   * 区間 [l, m), [m, r) を [m, r), [l, m) の順に回転する。
+   * 典型的には区間内 rotate に使う。
+   */
+  void rotate(int l, int m, int r) {
+    assert(0 <= l && l <= m && m <= r && r <= size());
+    reverse(l, m);
+    reverse(m, r);
+    reverse(l, r);
+  }
+
+  /*
+   * O(log N)
+   * k 番目の位置に 1 要素 x を挿入する。
+   * k == size() なら末尾追加。
+   */
+  void insert(int k, const T& x) {
+    assert(0 <= k && k <= size());
+    Base::insert(root, k, x);
+  }
+
+  /*
+   * O(log N)
+   * 先頭に 1 要素追加する。
+   */
+  void push_front(const T& x) { insert(0, x); }
+
+  /*
+   * O(log N)
+   * 末尾に 1 要素追加する。
+   */
+  void push_back(const T& x) { insert(size(), x); }
+
+  /*
+   * O(M + log(N + M))
+   * 位置 k に列 v をまとめて挿入する。
+   * ここで M = v.size()。
+   * build(v) で木を作ってから split / merge する。
+   */
+  void insert_range(int k, const vector<T>& v) {
+    assert(0 <= k && k <= size());
+    if (v.empty()) return;
+    auto [a, b] = split(root, k);
+    root = merge(a, merge(Base::build(v), b));
+  }
+
+  /*
+   * O(log N)
+   * k 番目の 1 要素を削除する。
+   */
+  void erase(int k) {
+    assert(0 <= k && k < size());
+    Base::erase(root, k);
+  }
+
+  /*
+   * O((r - l) + log N)
+   * 区間 [l, r) をまとめて削除する。
+   * 切り出した部分木を再帰的に destroy するため、削除要素数に比例して解放コストがかかる。
+   */
+  void erase(int l, int r) {
+    assert(0 <= l && l <= r && r <= size());
+    auto [a, bc] = split(root, l);
+    auto [b, c] = split(bc, r - l);
+    destroy(b);
+    root = merge(a, c);
+  }
+
+  /*
+   * O(log N)
+   * 先頭 1 要素を削除する。
+   */
+  void pop_front() {
+    assert(!empty());
+    erase(0);
+  }
+
+  /*
+   * O(log N)
+   * 末尾 1 要素を削除する。
+   */
+  void pop_back() {
+    assert(!empty());
+    erase(size() - 1);
+  }
+
+  /*
+   * O(log N)
+   * k 番目の値を返す。
+   * 木構造は元に戻すので、そのまま使い続けられる。
+   */
+  T get(int k) {
+    assert(0 <= k && k < size());
+    auto [a, bc] = split(root, k);
+    auto [b, c] = split(bc, 1);
+    T res = b->key;
+    root = merge(a, merge(b, c));
+    return res;
+  }
+
+  /*
+   * O(log N)
+   * get(k) の別名。
+   */
+  T at(int k) { return get(k); }
+
+  /*
+   * O(log N)
+   * 先頭要素を返す。
+   */
+  T front() {
+    assert(!empty());
+    return get(0);
+  }
+
+  /*
+   * O(log N)
+   * 末尾要素を返す。
+   */
+  T back() {
+    assert(!empty());
+    return get(size() - 1);
+  }
+
+  /*
+   * O(log N)
+   * k 番目の値を x に置き換える。
+   */
+  void set(int k, const T& x) {
+    assert(0 <= k && k < size());
+    auto [a, bc] = split(root, k);
+    auto [b, c] = split(bc, 1);
+    b->key = x;
+    b = Tree::update(b);
+    root = merge(a, merge(b, c));
+  }
+
+  /*
+   * O(log N)
+   * [0, k) を自分に残し、[k, N) を別の列として返す。
+   * 末尾側を切り離したいときに使う。
+   */
+  LazyRBSTSequence split_off(int k) {
+    assert(0 <= k && k <= size());
+    auto [a, b] = split(root, k);
+    root = a;
+    LazyRBSTSequence res;
+    res.root = b;
+    return res;
+  }
+
+  /*
+   * O(log N)
+   * 区間 [l, r) を切り出して別の列として返す。
+   * 元の列からその区間は取り除かれる。
+   */
+  LazyRBSTSequence cut(int l, int r) {
+    assert(0 <= l && l <= r && r <= size());
+    auto [a, bc] = split(root, l);
+    auto [b, c] = split(bc, r - l);
+    root = merge(a, c);
+    LazyRBSTSequence res;
+    res.root = b;
+    return res;
+  }
+
+  /*
+   * O(log(N + M))
+   * other を末尾に連結する。
+   * 連結後、other は空になる。
+   */
+  void append(LazyRBSTSequence& other) {
+    root = merge(root, other.root);
+    other.root = nullptr;
+  }
+
+  /*
+   * O(log(N + M))
+   * other を先頭に連結する。
+   * 連結後、other は空になる。
+   */
+  void prepend(LazyRBSTSequence& other) {
+    root = merge(other.root, root);
+    other.root = nullptr;
+  }
+
+  /*
+   * O(log(N + M))
+   * other の列全体を k 番目に挿入する。
+   * 挿入後、other は空になる。
+   */
+  void insert_tree(int k, LazyRBSTSequence& other) {
+    assert(0 <= k && k <= size());
+    auto [a, b] = split(root, k);
+    root = merge(a, merge(other.root, b));
+    other.root = nullptr;
+  }
+
+  /*
+   * O(1)
+   * 2 つの列の root を交換する。
+   */
+  void swap(LazyRBSTSequence& other) { std::swap(root, other.root); }
+
+  /*
+   * O(N)
+   * 現在の列を左から順に vector に展開して返す。
+   * デバッグや出力用に便利。
+   */
+  vector<T> to_vector() {
+    vector<T> res;
+    res.reserve(size());
+    dfs(root, res);
+    return res;
+  }
+
+  /*
+   * O(log N)
+   * pred(prod(l, x)) == true を満たす最大の x を返す。
+   * セグ木の max_right と同様の用途。
+   * pred(T()) == true を仮定する。
+   */
+  template <class F>
+  int max_right(int l, F pred) {
+    assert(0 <= l && l <= size());
+    auto [a, b] = split(root, l);
+    T acc = T();
+    int ans = l + max_right_dfs(b, acc, pred);
+    root = merge(a, b);
+    return ans;
+  }
+
+  /*
+   * O(log N)
+   * pred(prod(x, r)) == true を満たす最小の x を返す。
+   * セグ木の min_left と同様の用途。
+   * pred(T()) == true を仮定する。
+   */
+  template <class F>
+  int min_left(int r, F pred) {
+    assert(0 <= r && r <= size());
+    auto [a, b] = split(root, r);
+    T acc = T();
+    int left_size = Base::size(a);
+    int used = min_left_dfs(a, acc, pred);
+    root = merge(a, b);
+    return left_size - used;
+  }
+
+ private:
+  /*
+   * O(size(t))
+   * 部分木 t を再帰的に破棄する内部関数。
+   */
+  void destroy(Ptr t) {
+    if (!t) return;
+    destroy(t->l);
+    destroy(t->r);
+    Base::my_del(t);
+  }
+
+  /*
+   * O(size(t))
+   * 部分木 t を inorder 順に vector へ書き出す内部関数。
+   */
+  void dfs(Ptr t, vector<T>& out) {
+    if (!t) return;
+    Tree::push(t);
+    dfs(t->l, out);
+    out.push_back(t->key);
+    dfs(t->r, out);
+  }
+
+  /*
+   * O(height) = 期待 O(log N)
+   * max_right 用の内部探索。
+   * acc に現在までの集約値を持ちながら右端を二分探索的に探す。
+   */
+  template <class F>
+  int max_right_dfs(Ptr t, T& acc, F& pred) {
+    if (!t) return 0;
+    Tree::push(t);
+
+    T nxt = f(acc, t->l ? t->l->sum : T());
+    if (pred(nxt)) {
+      acc = nxt;
+      int used = Base::size(t->l);
+
+      nxt = f(acc, t->key);
+      if (pred(nxt)) {
+        acc = nxt;
+        return used + 1 + max_right_dfs(t->r, acc, pred);
+      }
+      return used;
+    }
+    return max_right_dfs(t->l, acc, pred);
+  }
+
+  /*
+   * O(height) = 期待 O(log N)
+   * min_left 用の内部探索。
+   * acc に現在までの集約値を持ちながら左端を二分探索的に探す。
+   */
+  template <class F>
+  int min_left_dfs(Ptr t, T& acc, F& pred) {
+    if (!t) return 0;
+    Tree::push(t);
+
+    T nxt = f(t->r ? t->r->sum : T(), acc);
+    if (pred(nxt)) {
+      acc = nxt;
+      int used = Base::size(t->r);
+
+      nxt = f(t->key, acc);
+      if (pred(nxt)) {
+        acc = nxt;
+        return used + 1 + min_left_dfs(t->l, acc, pred);
+      }
+      return used;
+    }
+    return min_left_dfs(t->r, acc, pred);
+  }
+};
+
 // ========================================
 // 1. Range Add / Range Sum
 // ========================================
