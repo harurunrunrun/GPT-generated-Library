@@ -1,0 +1,103 @@
+
+
+#include <bits/stdc++.h>
+using namespace std;
+
+struct DynamicLazySegTree01 {
+    using ll = long long;
+
+    struct Node {
+        ll ones;      // 区間内の 1 の個数
+        int lazy;     // -1: なし, 0: 全部0, 1: 全部1
+        Node *lch, *rch;
+        Node() : ones(0), lazy(-1), lch(nullptr), rch(nullptr) {}
+    };
+
+    ll L, R;      // 管理する全体区間 [L, R)
+    Node* root;
+
+    DynamicLazySegTree01(ll L_, ll R_) : L(L_), R(R_), root(nullptr) {}
+
+    void apply(Node* t, ll l, ll r, int v) {
+        t->ones = (v == 0 ? 0 : (r - l));
+        t->lazy = v;
+    }
+
+    void push(Node* t, ll l, ll r) {
+        if (!t || t->lazy == -1 || r - l == 1) return;
+        ll m = (l + r) >> 1;
+        if (!t->lch) t->lch = new Node();
+        if (!t->rch) t->rch = new Node();
+        apply(t->lch, l, m, t->lazy);
+        apply(t->rch, m, r, t->lazy);
+        t->lazy = -1;
+    }
+
+    void pull(Node* t) {
+        ll lv = (t->lch ? t->lch->ones : 0);
+        ll rv = (t->rch ? t->rch->ones : 0);
+        t->ones = lv + rv;
+    }
+
+    void range_assign(ll a, ll b, int v) {
+        range_assign(root, a, b, v, L, R);
+    }
+
+    void range_assign(Node*& t, ll a, ll b, int v, ll l, ll r) {
+        if (r <= a || b <= l) return;
+        if (!t) t = new Node();
+
+        if (a <= l && r <= b) {
+            apply(t, l, r, v);
+            return;
+        }
+
+        push(t, l, r);
+        ll m = (l + r) >> 1;
+        range_assign(t->lch, a, b, v, l, m);
+        range_assign(t->rch, a, b, v, m, r);
+        pull(t);
+    }
+
+    ll range_sum(ll a, ll b) const {
+        return range_sum(root, a, b, L, R);
+    }
+
+    ll range_sum(Node* t, ll a, ll b, ll l, ll r) const {
+        if (!t || r <= a || b <= l) return 0;
+        if (a <= l && r <= b) return t->ones;
+
+        // この区間全体が 0 または 1 に確定しているなら、
+        // 子に降りずに重なり長だけで答えられる
+        if (t->lazy != -1) {
+            ll len = min(r, b) - max(l, a);
+            return (len > 0 ? 1LL * t->lazy * len : 0);
+        }
+
+        ll m = (l + r) >> 1;
+        return range_sum(t->lch, a, b, l, m)
+             + range_sum(t->rch, a, b, m, r);
+    }
+
+    int get(ll p) const {
+        return (int)range_sum(p, p + 1);
+    }
+};
+
+/*
+int main() {
+    using ll = long long;
+
+    // 管理範囲 [0, 10^9)
+    DynamicLazySegTree01 seg(0, 1000000000LL);
+
+    seg.range_assign(10, 20, 1);  // [10,20) を全部 1
+    seg.range_assign(15, 18, 0);  // [15,18) を全部 0
+
+    cout << seg.range_sum(0, 30) << '\n';   // 7
+    cout << seg.range_sum(10, 15) << '\n';  // 5
+    cout << seg.range_sum(15, 20) << '\n';  // 2
+    cout << seg.get(16) << '\n';            // 0
+    cout << seg.get(19) << '\n';            // 1
+}
+*/
