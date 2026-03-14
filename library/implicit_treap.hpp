@@ -82,6 +82,35 @@ struct RMaxQ_RAQ {
     static E lazy_id() { return 0LL; }
 };
 
+struct DummyMonoid {
+    using T = long long;
+    using E = long long;
+
+    static T op(const T& a, const T& b) {
+        return 0LL;
+    }
+
+    static T id() {
+        return 0LL;
+    }
+
+    static T from_value(const T& x) {
+        return x;
+    }
+
+    static T apply(const T& x, const E&, int) {
+        return x;
+    }
+
+    static E compose(const E&, const E&) {
+        return 0LL;
+    }
+
+    static E lazy_id() {
+        return 0LL;
+    }
+};
+
 // ------------------------------------------------------------
 // Implicit Treap
 // - 区間集約
