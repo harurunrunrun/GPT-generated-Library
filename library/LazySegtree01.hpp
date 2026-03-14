@@ -1,0 +1,87 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+struct LazySegTree01 {
+    int n;
+    vector<int> ones; // 区間内の 1 の個数
+    vector<int> lazy; // -1: 何もしない, 0: 全部0, 1: 全部1
+
+    LazySegTree01() : n(0) {}
+
+    LazySegTree01(const vector<int>& a) {
+        int sz = (int)a.size();
+        n = 1;
+        while (n < sz) n <<= 1;
+        ones.assign(2 * n, 0);
+        lazy.assign(2 * n, -1);
+
+        for (int i = 0; i < sz; i++) ones[n + i] = a[i];
+        for (int i = n - 1; i >= 1; i--) {
+            ones[i] = ones[i << 1] + ones[i << 1 | 1];
+        }
+    }
+
+    void apply_node(int k, int len, int v) {
+        ones[k] = (v == 0 ? 0 : len);
+        lazy[k] = v;
+    }
+
+    void push(int k, int len) {
+        if (lazy[k] == -1 || k >= n) return;
+        int v = lazy[k];
+        int half = len >> 1;
+        apply_node(k << 1, half, v);
+        apply_node(k << 1 | 1, half, v);
+        lazy[k] = -1;
+    }
+
+    void range_assign(int a, int b, int v) {
+        range_assign(a, b, v, 1, 0, n);
+    }
+
+    void range_assign(int a, int b, int v, int k, int l, int r) {
+        if (r <= a || b <= l) return;
+        if (a <= l && r <= b) {
+            apply_node(k, r - l, v);
+            return;
+        }
+        push(k, r - l);
+        int m = (l + r) >> 1;
+        range_assign(a, b, v, k << 1, l, m);
+        range_assign(a, b, v, k << 1 | 1, m, r);
+        ones[k] = ones[k << 1] + ones[k << 1 | 1];
+    }
+
+    int range_sum(int a, int b) {
+        return range_sum(a, b, 1, 0, n);
+    }
+
+    int range_sum(int a, int b, int k, int l, int r) {
+        if (r <= a || b <= l) return 0;
+        if (a <= l && r <= b) return ones[k];
+        push(k, r - l);
+        int m = (l + r) >> 1;
+        return range_sum(a, b, k << 1, l, m)
+             + range_sum(a, b, k << 1 | 1, m, r);
+    }
+
+    int get(int p) {
+        return range_sum(p, p + 1);
+    }
+};
+/*
+int main() {
+    vector<int> a = {1, 0, 1, 1, 0, 0, 1, 0};
+    LazySegTree01 seg(a);
+
+    cout << seg.range_sum(0, 8) << '\n'; // 4
+
+    seg.range_assign(2, 6, 0); // [2,6) を全部 0
+    cout << seg.range_sum(0, 8) << '\n'; // 2
+
+    seg.range_assign(1, 5, 1); // [1,5) を全部 1
+    cout << seg.range_sum(0, 8) << '\n'; // 5
+
+    cout << seg.get(3) << '\n'; // 1
+}
+*/
