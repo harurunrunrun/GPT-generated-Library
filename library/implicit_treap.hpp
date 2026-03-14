@@ -1,0 +1,358 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// よく使う型
+using ll = long long;
+using pii = pair<int, int>;
+using pll = pair<long long, long long>;
+
+// ------------------------------------------------------------
+// モノイド・作用の例
+// 必要に応じて差し替えて使う
+// ------------------------------------------------------------
+
+// Range Sum Query + Range Add Query
+struct RSQ_RAQ {
+    using T = long long; // 集約値の型
+    using E = long long; // 遅延作用の型
+
+    static T op(const T& a, const T& b) { return a + b; }
+    static T id() { return 0LL; }
+
+    static T from_value(const T& x) { return x; }
+
+    static T apply(const T& x, const E& f, int sz) {
+        return x + f * sz;
+    }
+
+    static E compose(const E& f, const E& g) {
+        return f + g;
+    }
+
+    static E lazy_id() { return 0LL; }
+};
+
+// Range Minimum Query + Range Add Query
+struct RMQ_RAQ {
+    using T = long long; // 集約値の型
+    using E = long long; // 遅延作用の型
+
+    static T op(const T& a, const T& b) { return min(a, b); }
+    static T id() { return (1LL << 60); }
+
+    static T from_value(const T& x) { return x; }
+
+    static T apply(const T& x, const E& f, int) {
+        return x + f;
+    }
+
+    static E compose(const E& f, const E& g) {
+        return f + g;
+    }
+
+    static E lazy_id() { return 0LL; }
+};
+
+// Range Maximum Query + Range Add Query
+struct RMaxQ_RAQ {
+    using T = long long; // 集約値の型
+    using E = long long; // 遅延作用の型
+
+    static T op(const T& a, const T& b) { return max(a, b); }
+    static T id() { return -(1LL << 60); }
+
+    static T from_value(const T& x) { return x; }
+
+    static T apply(const T& x, const E& f, int) {
+        return x + f;
+    }
+
+    static E compose(const E& f, const E& g) {
+        return f + g;
+    }
+
+    static E lazy_id() { return 0LL; }
+};
+
+// ------------------------------------------------------------
+// Implicit Treap
+// - 区間集約
+// - 区間遅延更新
+// - 区間反転
+// をサポートする汎用実装
+// ------------------------------------------------------------
+template <class Monoid>
+struct ImplicitTreap {
+    using T = typename Monoid::T;
+    using E = typename Monoid::E;
+
+    struct Node {
+        T val, sum;
+        E lazy;
+        int sz;
+        uint32_t pri;
+        bool rev;
+        Node *l, *r;
+
+        Node(const T& v, uint32_t p)
+            : val(v), sum(Monoid::from_value(v)), lazy(Monoid::lazy_id()),
+              sz(1), pri(p), rev(false), l(nullptr), r(nullptr) {}
+    };
+
+    Node* root = nullptr;
+    mt19937 rng;
+
+    ImplicitTreap() : rng((uint32_t)chrono::steady_clock::now().time_since_epoch().count()) {}
+
+    explicit ImplicitTreap(const vector<T>& a) : ImplicitTreap() {
+        for (int i = 0; i < (int)a.size(); i++) insert(i, a[i]);
+    }
+
+    // ノードサイズを返す
+    // 時間計算量: O(1)
+    int size(Node* t) const {
+        return t ? t->sz : 0;
+    }
+
+    // 部分木の集約値を返す
+    // 時間計算量: O(1)
+    T fold_all(Node* t) const {
+        return t ? t->sum : Monoid::id();
+    }
+
+    // 1ノードに遅延作用を適用する
+    // 時間計算量: O(1)
+    void apply_node(Node* t, const E& f) {
+        if (!t) return;
+        t->val = Monoid::apply(t->val, f, 1);
+        t->sum = Monoid::apply(t->sum, f, t->sz);
+        t->lazy = Monoid::compose(t->lazy, f);
+    }
+
+    // 1ノードに反転作用を適用する
+    // 時間計算量: O(1)
+    void toggle(Node* t) {
+        if (!t) return;
+        swap(t->l, t->r);
+        t->rev ^= true;
+    }
+
+    // 子に遅延・反転を伝播する
+    // 時間計算量: O(1)
+    void push(Node* t) {
+        if (!t) return;
+
+        if (t->rev) {
+            toggle(t->l);
+            toggle(t->r);
+            t->rev = false;
+        }
+
+        if (t->lazy != Monoid::lazy_id()) {
+            apply_node(t->l, t->lazy);
+            apply_node(t->r, t->lazy);
+            t->lazy = Monoid::lazy_id();
+        }
+    }
+
+    // ノード情報を再計算する
+    // 時間計算量: O(1)
+    void pull(Node* t) {
+        if (!t) return;
+        t->sz = 1 + size(t->l) + size(t->r);
+        t->sum = Monoid::op(
+            Monoid::op(fold_all(t->l), t->val),
+            fold_all(t->r)
+        );
+    }
+
+    // 先頭k個と残りに分割する
+    // 戻り値: { [0, k), [k, n) }
+    // 時間計算量: 平均 O(log N)
+    pair<Node*, Node*> split(Node* t, int k) {
+        if (!t) return {nullptr, nullptr};
+        push(t);
+
+        if (k <= size(t->l)) {
+            auto [a, b] = split(t->l, k);
+            t->l = b;
+            pull(t);
+            return {a, t};
+        } else {
+            auto [a, b] = split(t->r, k - size(t->l) - 1);
+            t->r = a;
+            pull(t);
+            return {t, b};
+        }
+    }
+
+    // 2つの列をマージする
+    // 前提: 左部分木の全要素が右部分木の前に来る
+    // 時間計算量: 平均 O(log N)
+    Node* merge(Node* a, Node* b) {
+        if (!a || !b) return a ? a : b;
+        if (a->pri > b->pri) {
+            push(a);
+            a->r = merge(a->r, b);
+            pull(a);
+            return a;
+        } else {
+            push(b);
+            b->l = merge(a, b->l);
+            pull(b);
+            return b;
+        }
+    }
+
+    // 位置posに値xを挿入する
+    // 時間計算量: 平均 O(log N)
+    void insert(int pos, const T& x) {
+        auto [a, b] = split(root, pos);
+        root = merge(merge(a, new Node(x, rng())), b);
+    }
+
+    // 位置posの要素を削除する
+    // 時間計算量: 平均 O(log N)
+    void erase(int pos) {
+        auto [a, bc] = split(root, pos);
+        auto [b, c] = split(bc, 1);
+        delete_subtree(b);
+        root = merge(a, c);
+    }
+
+    // 区間[l, r)に遅延作用fを適用する
+    // 時間計算量: 平均 O(log N)
+    void apply(int l, int r, const E& f) {
+        auto [a, bc] = split(root, l);
+        auto [b, c] = split(bc, r - l);
+        apply_node(b, f);
+        root = merge(a, merge(b, c));
+    }
+
+    // 区間[l, r)を反転する
+    // 時間計算量: 平均 O(log N)
+    void reverse(int l, int r) {
+        auto [a, bc] = split(root, l);
+        auto [b, c] = split(bc, r - l);
+        toggle(b);
+        root = merge(a, merge(b, c));
+    }
+
+    // 区間[l, r)の集約値を返す
+    // 時間計算量: 平均 O(log N)
+    T prod(int l, int r) {
+        auto [a, bc] = split(root, l);
+        auto [b, c] = split(bc, r - l);
+        T res = fold_all(b);
+        root = merge(a, merge(b, c));
+        return res;
+    }
+
+    // 全体の集約値を返す
+    // 時間計算量: O(1)
+    T all_prod() const {
+        return fold_all(root);
+    }
+
+    // 位置posの値を返す
+    // 時間計算量: 平均 O(log N)
+    T get(int pos) {
+        auto [a, bc] = split(root, pos);
+        auto [b, c] = split(bc, 1);
+        T res = b->val;
+        root = merge(a, merge(b, c));
+        return res;
+    }
+
+    // 位置posの値をxに置き換える
+    // 時間計算量: 平均 O(log N)
+    void set_val(int pos, const T& x) {
+        auto [a, bc] = split(root, pos);
+        auto [b, c] = split(bc, 1);
+        b->val = x;
+        pull(b);
+        root = merge(a, merge(b, c));
+    }
+
+    // 配列長を返す
+    // 時間計算量: O(1)
+    int size() const {
+        return size(root);
+    }
+
+    // 全要素をvectorにして返す
+    // 時間計算量: O(N)
+    vector<T> to_vector() {
+        vector<T> res;
+        res.reserve(size());
+        dfs(root, res);
+        return res;
+    }
+
+    // 木全体を破棄する
+    // 時間計算量: O(N)
+    void clear() {
+        delete_subtree(root);
+        root = nullptr;
+    }
+
+    // デストラクタ
+    // 時間計算量: O(N)
+    ~ImplicitTreap() {
+        clear();
+    }
+
+private:
+    // 中順走査で配列へ復元する
+    // 時間計算量: O(N)
+    void dfs(Node* t, vector<T>& res) {
+        if (!t) return;
+        push(t);
+        dfs(t->l, res);
+        res.push_back(t->val);
+        dfs(t->r, res);
+    }
+
+    // 部分木を再帰的に削除する
+    // 時間計算量: O(N)
+    void delete_subtree(Node* t) {
+        if (!t) return;
+        delete_subtree(t->l);
+        delete_subtree(t->r);
+        delete t;
+    }
+};
+
+// ------------------------------------------------------------
+// 使用例
+//------------------------------------------------------------
+/*
+int main() {
+    // RMQ + RAQ を使う例
+    ImplicitTreap<RMQ_RAQ> tr;
+    tr.insert(0, 5);
+    tr.insert(1, 3);
+    tr.insert(2, 8);
+    tr.insert(3, 6);
+
+    // 区間最小値 [0, 4)
+    cout << tr.prod(0, 4) << '\n'; // 3
+
+    // [1, 3) に +2
+    tr.apply(1, 3, 2);
+
+    // 区間最小値 [0, 4)
+    cout << tr.prod(0, 4) << '\n'; // 5
+
+    // [0, 4) を反転
+    tr.reverse(0, 4);
+
+    // 配列を出力
+    auto v = tr.to_vector();
+    for (auto x : v) cout << x << ' ';
+    cout << '\n';
+
+    return 0;
+}
+
+*/
