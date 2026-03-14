@@ -1,0 +1,122 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+struct DynamicLazySegTree01 {
+    using ll = long long;
+
+    static constexpr int ID   = 0;
+    static constexpr int SET0 = 1;
+    static constexpr int SET1 = 2;
+    static constexpr int FLIP = 3;
+
+    struct Node {
+        ll ones;      // 区間内の 1 の個数
+        int lazy;     // 遅延作用
+        Node *lch, *rch;
+        Node() : ones(0), lazy(ID), lch(nullptr), rch(nullptr) {}
+    };
+
+    ll L, R;   // 管理区間 [L, R)
+    Node* root;
+
+    DynamicLazySegTree01(ll L_, ll R_) : L(L_), R(R_), root(nullptr) {}
+
+    int compose(int f, int g) {
+        if (f == ID) return g;
+        if (f == SET0) return SET0;
+        if (f == SET1) return SET1;
+        // f == FLIP
+        if (g == ID)   return FLIP;
+        if (g == SET0) return SET1;
+        if (g == SET1) return SET0;
+        return ID; // FLIP ∘ FLIP = ID
+    }
+
+    void apply(Node* t, ll l, ll r, int op) {
+        if (op == ID) return;
+        if (op == SET0) t->ones = 0;
+        else if (op == SET1) t->ones = r - l;
+        else if (op == FLIP) t->ones = (r - l) - t->ones;
+        t->lazy = compose(op, t->lazy);
+    }
+
+    void push(Node* t, ll l, ll r) {
+        if (!t || t->lazy == ID || r - l == 1) return;
+        ll m = (l + r) >> 1;
+        if (!t->lch) t->lch = new Node();
+        if (!t->rch) t->rch = new Node();
+        apply(t->lch, l, m, t->lazy);
+        apply(t->rch, m, r, t->lazy);
+        t->lazy = ID;
+    }
+
+    void pull(Node* t) {
+        ll lv = (t->lch ? t->lch->ones : 0);
+        ll rv = (t->rch ? t->rch->ones : 0);
+        t->ones = lv + rv;
+    }
+
+    void range_assign(ll a, ll b, int v) {
+        range_apply(root, a, b, v ? SET1 : SET0, L, R);
+    }
+
+    void range_flip(ll a, ll b) {
+        range_apply(root, a, b, FLIP, L, R);
+    }
+
+    void range_apply(Node*& t, ll a, ll b, int op, ll l, ll r) {
+        if (r <= a || b <= l) return;
+        if (!t) t = new Node();
+
+        if (a <= l && r <= b) {
+            apply(t, l, r, op);
+            return;
+        }
+
+        push(t, l, r);
+        ll m = (l + r) >> 1;
+        range_apply(t->lch, a, b, op, l, m);
+        range_apply(t->rch, a, b, op, m, r);
+        pull(t);
+    }
+
+    ll range_sum(ll a, ll b) {
+        return range_sum(root, a, b, L, R);
+    }
+
+    ll range_sum(Node* t, ll a, ll b, ll l, ll r) {
+        if (!t || r <= a || b <= l) return 0;
+        if (a <= l && r <= b) return t->ones;
+
+        push(t, l, r);
+        ll m = (l + r) >> 1;
+        return range_sum(t->lch, a, b, l, m)
+             + range_sum(t->rch, a, b, m, r);
+    }
+
+    int get(ll p) {
+        return (int)range_sum(p, p + 1);
+    }
+};
+
+/*
+int main() {
+    using ll = long long;
+
+    DynamicLazySegTree01 seg(0, 1000000000LL);
+
+    seg.range_assign(10, 20, 1);  // [10,20) = 1
+    seg.range_flip(15, 25);       // [15,25) を反転
+
+    cout << seg.range_sum(0, 30) << '\n';   // 10
+    cout << seg.range_sum(10, 15) << '\n';  // 5
+    cout << seg.range_sum(15, 20) << '\n';  // 0
+    cout << seg.range_sum(20, 25) << '\n';  // 5
+
+    seg.range_assign(18, 22, 1);
+    cout << seg.range_sum(0, 30) << '\n';   // 14
+
+    cout << seg.get(19) << '\n';            // 1
+    cout << seg.get(23) << '\n';            // 1
+}
+*/
