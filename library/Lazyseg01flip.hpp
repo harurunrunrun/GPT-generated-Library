@@ -8,120 +8,402 @@ Please refer to the GitHub repository above for evidence that they were generate
 #include <bits/stdc++.h>
 using namespace std;
 
-struct LazySegTree01 {
-    using ll = long long;
+class BinaryLazySegTree {
+    using ull = unsigned long long;
 
-    static constexpr int ID   = 0;
-    static constexpr int SET0 = 1;
-    static constexpr int SET1 = 2;
-    static constexpr int FLIP = 3;
+    static constexpr int8_t OP_ID    = 0;
+    static constexpr int8_t OP_SET0  = 1;
+    static constexpr int8_t OP_SET1  = 2;
+    static constexpr int8_t OP_FLIP  = 3;
 
-    int n;
-    vector<ll> ones;   // 区間内の 1 の個数
-    vector<int> lazy;  // 遅延作用
+    struct PackedBits {
+        int n = 0;
+        int blocks = 0;
+        vector<ull> data;
 
-    LazySegTree01() : n(0) {}
+        PackedBits() = default;
+        explicit PackedBits(int n_) : n(n_), blocks((n_ + 63) >> 6), data(blocks, 0ULL) {}
 
-    LazySegTree01(const vector<int>& a) {
-        int sz = (int)a.size();
-        n = 1;
-        while (n < sz) n <<= 1;
-        ones.assign(2 * n, 0);
-        lazy.assign(2 * n, ID);
+        static inline ull low_mask(int k) {
+            if (k <= 0) return 0ULL;
+            if (k >= 64) return ~0ULL;
+            return (1ULL << k) - 1;
+        }
 
-        for (int i = 0; i < sz; i++) ones[n + i] = a[i];
-        for (int i = n - 1; i >= 1; i--) {
-            ones[i] = ones[i << 1] + ones[i << 1 | 1];
+        inline ull valid_mask(int b) const {
+            const int rem = n - (b << 6);
+            if (rem >= 64) return ~0ULL;
+            if (rem <= 0) return 0ULL;
+            return low_mask(rem);
+        }
+
+        inline void fill_block(int b, int value) {
+            data[b] = value ? valid_mask(b) : 0ULL;
+        }
+
+        inline void flip_block(int b) {
+            data[b] ^= valid_mask(b);
+        }
+
+        inline void assign_in_block(int b, int l, int r, int value) {
+            const int block_l = b << 6;
+            const int block_r = min(n, block_l + 64);
+            const int L = max(l, block_l);
+            const int R = min(r, block_r);
+            if (L >= R) return;
+
+            const int left = L - block_l;
+            const int right = R - block_l;
+            const ull mask = low_mask(right) & ~low_mask(left);
+
+            if (value) data[b] |= mask;
+            else data[b] &= ~mask;
+        }
+
+        inline void flip_in_block(int b, int l, int r) {
+            const int block_l = b << 6;
+            const int block_r = min(n, block_l + 64);
+            const int L = max(l, block_l);
+            const int R = min(r, block_r);
+            if (L >= R) return;
+
+            const int left = L - block_l;
+            const int right = R - block_l;
+            const ull mask = low_mask(right) & ~low_mask(left);
+            data[b] ^= mask;
+        }
+
+        inline uint32_t sum_block(int b) const {
+            return (uint32_t)__builtin_popcountll(data[b]);
+        }
+
+        inline uint32_t range_sum_in_block(int b, int l, int r) const {
+            const int block_l = b << 6;
+            const int block_r = min(n, block_l + 64);
+            const int L = max(l, block_l);
+            const int R = min(r, block_r);
+            if (L >= R) return 0;
+
+            const int left = L - block_l;
+            const int right = R - block_l;
+            const ull mask = low_mask(right) & ~low_mask(left);
+            return (uint32_t)__builtin_popcountll(data[b] & mask);
+        }
+
+        inline void set_bit(int i, int value) {
+            const int b = i >> 6;
+            const int off = i & 63;
+            const ull mask = 1ULL << off;
+            if (value) data[b] |= mask;
+            else data[b] &= ~mask;
+        }
+
+        inline int get_bit(int i) const {
+            return (data[i >> 6] >> (i & 63)) & 1ULL;
+        }
+    };
+
+    int n_ = 0;
+    int blocks_ = 0;
+
+    int size_ = 1;
+    int log_ = 0;
+
+    PackedBits bits_;
+
+    vector<uint64_t> seg_;
+    vector<uint64_t> len_;
+    vector<int8_t> lazy_;
+
+    static inline int ceil_pow2(int x) {
+        int p = 1;
+        while (p < x) p <<= 1;
+        return p;
+    }
+
+    static inline int8_t compose_op(int8_t f, int8_t g) {
+        // return f ∘ g
+        if (f == OP_ID) return g;
+        if (f == OP_SET0) return OP_SET0;
+        if (f == OP_SET1) return OP_SET1;
+        // f == OP_FLIP
+        if (g == OP_ID)   return OP_FLIP;
+        if (g == OP_SET0) return OP_SET1;
+        if (g == OP_SET1) return OP_SET0;
+        return OP_ID; // flip ∘ flip
+    }
+
+    void init_storage() {
+        blocks_ = (n_ + 63) >> 6;
+        size_ = max(1, ceil_pow2(max(1, blocks_)));
+        log_ = 0;
+        while ((1 << log_) < size_) ++log_;
+
+        seg_.assign(size_ << 1, 0ULL);
+        len_.assign(size_ << 1, 0ULL);
+        lazy_.assign(size_ << 1, OP_ID);
+
+        for (int b = 0; b < blocks_; ++b) {
+            const int block_l = b << 6;
+            const int block_r = min(n_, block_l + 64);
+            len_[size_ + b] = (uint64_t)(block_r - block_l);
+        }
+        for (int i = size_ - 1; i >= 1; --i) {
+            len_[i] = len_[i << 1] + len_[i << 1 | 1];
         }
     }
 
-    // g を先に適用し、その後 f を適用する合成 f∘g
-    int compose(int f, int g) {
-        if (f == ID) return g;
-        if (f == SET0) return SET0;
-        if (f == SET1) return SET1;
-        // f == FLIP
-        if (g == ID)   return FLIP;
-        if (g == SET0) return SET1;
-        if (g == SET1) return SET0;
-        return ID; // FLIP ∘ FLIP = ID
+    void build_from_bits() {
+        for (int b = 0; b < blocks_; ++b) {
+            seg_[size_ + b] = bits_.sum_block(b);
+        }
+        for (int i = size_ - 1; i >= 1; --i) {
+            seg_[i] = seg_[i << 1] + seg_[i << 1 | 1];
+        }
     }
 
-    void apply_node(int k, int len, int op) {
-        if (op == ID) return;
-        if (op == SET0) ones[k] = 0;
-        else if (op == SET1) ones[k] = len;
-        else if (op == FLIP) ones[k] = len - ones[k];
-        lazy[k] = compose(op, lazy[k]);
+    inline void apply_node(int k, int8_t op) {
+        if (op == OP_ID) return;
+
+        if (op == OP_SET0) seg_[k] = 0ULL;
+        else if (op == OP_SET1) seg_[k] = len_[k];
+        else seg_[k] = len_[k] - seg_[k];
+
+        lazy_[k] = compose_op(op, lazy_[k]);
+
+        if (k >= size_) {
+            const int b = k - size_;
+            if (b < blocks_) {
+                if (op == OP_SET0) bits_.fill_block(b, 0);
+                else if (op == OP_SET1) bits_.fill_block(b, 1);
+                else bits_.flip_block(b);
+            }
+        }
     }
 
-    void push(int k, int len) {
-        if (lazy[k] == ID || k >= n) return;
-        int half = len >> 1;
-        apply_node(k << 1,     half, lazy[k]);
-        apply_node(k << 1 | 1, half, lazy[k]);
-        lazy[k] = ID;
+    inline void push_one(int k) {
+        if (k >= size_ || lazy_[k] == OP_ID) return;
+        const int8_t op = lazy_[k];
+        apply_node(k << 1, op);
+        apply_node(k << 1 | 1, op);
+        lazy_[k] = OP_ID;
     }
 
-    void pull(int k) {
-        ones[k] = ones[k << 1] + ones[k << 1 | 1];
+    inline void push_path(int p) {
+        for (int s = log_; s >= 1; --s) {
+            push_one(p >> s);
+        }
     }
 
-    void range_assign(int a, int b, int v) {
-        range_apply(a, b, v ? SET1 : SET0, 1, 0, n);
+    inline void pull_path(int p) {
+        while (p > 1) {
+            p >>= 1;
+            if (lazy_[p] == OP_ID) {
+                seg_[p] = seg_[p << 1] + seg_[p << 1 | 1];
+            } else if (lazy_[p] == OP_SET0) {
+                seg_[p] = 0ULL;
+            } else if (lazy_[p] == OP_SET1) {
+                seg_[p] = len_[p];
+            } else {
+                seg_[p] = len_[p] - (seg_[p << 1] + seg_[p << 1 | 1]);
+            }
+        }
     }
 
-    void range_flip(int a, int b) {
-        range_apply(a, b, FLIP, 1, 0, n);
+    inline void apply_partial_in_block(int b, int l, int r, int8_t op) {
+        const int p = size_ + b;
+        push_path(p);
+
+        if (op == OP_SET0) bits_.assign_in_block(b, l, r, 0);
+        else if (op == OP_SET1) bits_.assign_in_block(b, l, r, 1);
+        else if (op == OP_FLIP) bits_.flip_in_block(b, l, r);
+
+        seg_[p] = bits_.sum_block(b);
+        lazy_[p] = OP_ID;
+        pull_path(p);
     }
 
-    void range_apply(int a, int b, int op, int k, int l, int r) {
-        if (r <= a || b <= l) return;
-        if (a <= l && r <= b) {
-            apply_node(k, r - l, op);
+    inline void set_point_in_block(int idx, int value) {
+        const int b = idx >> 6;
+        const int p = size_ + b;
+        push_path(p);
+        bits_.set_bit(idx, value);
+        seg_[p] = bits_.sum_block(b);
+        lazy_[p] = OP_ID;
+        pull_path(p);
+    }
+
+    inline void apply_blocks(int l_block, int r_block, int8_t op) {
+        if (l_block >= r_block) return;
+
+        int l = l_block + size_;
+        int r = r_block + size_;
+        const int l0 = l;
+        const int r0 = r - 1;
+
+        push_path(l0);
+        push_path(r0);
+
+        while (l < r) {
+            if (l & 1) apply_node(l++, op);
+            if (r & 1) apply_node(--r, op);
+            l >>= 1;
+            r >>= 1;
+        }
+
+        pull_path(l0);
+        pull_path(r0);
+    }
+
+    inline uint64_t sum_blocks(int l_block, int r_block) {
+        if (l_block >= r_block) return 0ULL;
+
+        int l = l_block + size_;
+        int r = r_block + size_;
+        push_path(l);
+        push_path(r - 1);
+
+        uint64_t res_left = 0, res_right = 0;
+        while (l < r) {
+            if (l & 1) res_left += seg_[l++];
+            if (r & 1) res_right += seg_[--r];
+            l >>= 1;
+            r >>= 1;
+        }
+        return res_left + res_right;
+    }
+
+    inline void range_apply(int l, int r, int8_t op) {
+        if (n_ == 0) return;
+        if (l < 0) l = 0;
+        if (r > n_) r = n_;
+        if (l >= r) return;
+
+        const int lb = l >> 6;
+        const int rb = (r - 1) >> 6;
+
+        if (lb == rb) {
+            apply_partial_in_block(lb, l, r, op);
             return;
         }
-        push(k, r - l);
-        int m = (l + r) >> 1;
-        range_apply(a, b, op, k << 1, l, m);
-        range_apply(a, b, op, k << 1 | 1, m, r);
-        pull(k);
+
+        int full_l = lb;
+        int full_r = rb + 1;
+
+        const int left_block_start = lb << 6;
+        const int left_block_end = min(n_, left_block_start + 64);
+        if (l != left_block_start) {
+            apply_partial_in_block(lb, l, left_block_end, op);
+            full_l = lb + 1;
+        }
+
+        const int right_block_start = rb << 6;
+        const int right_block_end = min(n_, right_block_start + 64);
+        if (r != right_block_end) {
+            apply_partial_in_block(rb, right_block_start, r, op);
+            full_r = rb;
+        }
+
+        apply_blocks(full_l, full_r, op);
     }
 
-    ll range_sum(int a, int b) {
-        return range_sum(a, b, 1, 0, n);
+public:
+    explicit BinaryLazySegTree(int n) : n_(n), bits_(n) {
+        init_storage();
+        build_from_bits();
     }
 
-    ll range_sum(int a, int b, int k, int l, int r) {
-        if (r <= a || b <= l) return 0;
-        if (a <= l && r <= b) return ones[k];
-        push(k, r - l);
-        int m = (l + r) >> 1;
-        return range_sum(a, b, k << 1, l, m)
-             + range_sum(a, b, k << 1 | 1, m, r);
+    explicit BinaryLazySegTree(const string& s) : n_((int)s.size()), bits_((int)s.size()) {
+        init_storage();
+        for (int i = 0; i < n_; ++i) {
+            if (s[i] == '1') bits_.set_bit(i, 1);
+        }
+        build_from_bits();
     }
 
-    int get(int p) {
-        return (int)range_sum(p, p + 1);
+    explicit BinaryLazySegTree(const vector<int>& init) : n_((int)init.size()), bits_((int)init.size()) {
+        init_storage();
+        for (int i = 0; i < n_; ++i) {
+            if (init[i]) bits_.set_bit(i, 1);
+        }
+        build_from_bits();
+    }
+
+    inline int size() const {
+        return n_;
+    }
+
+    // [l, r) を 0 に
+    inline void assignzero(int l, int r) {
+        range_apply(l, r, OP_SET0);
+    }
+
+    // [l, r) を 1 に
+    inline void assignone(int l, int r) {
+        range_apply(l, r, OP_SET1);
+    }
+
+    // [l, r) を反転
+    inline void rangeflip(int l, int r) {
+        range_apply(l, r, OP_FLIP);
+    }
+
+    // [l, r) の 1 の個数
+    inline uint64_t rangesum(int l, int r) {
+        if (n_ == 0) return 0ULL;
+        if (l < 0) l = 0;
+        if (r > n_) r = n_;
+        if (l >= r) return 0ULL;
+
+        const int lb = l >> 6;
+        const int rb = (r - 1) >> 6;
+
+        if (lb == rb) {
+            const int p = size_ + lb;
+            push_path(p);
+            return bits_.range_sum_in_block(lb, l, r);
+        }
+
+        uint64_t res = 0;
+        int full_l = lb;
+        int full_r = rb + 1;
+
+        const int left_block_start = lb << 6;
+        const int left_block_end = min(n_, left_block_start + 64);
+        if (l != left_block_start) {
+            const int p = size_ + lb;
+            push_path(p);
+            res += bits_.range_sum_in_block(lb, l, left_block_end);
+            full_l = lb + 1;
+        }
+
+        const int right_block_start = rb << 6;
+        const int right_block_end = min(n_, right_block_start + 64);
+        if (r != right_block_end) {
+            const int p = size_ + rb;
+            push_path(p);
+            res += bits_.range_sum_in_block(rb, right_block_start, r);
+            full_r = rb;
+        }
+
+        res += sum_blocks(full_l, full_r);
+        return res;
+    }
+
+    inline void setzero(int idx) {
+        if (idx < 0 || idx >= n_) return;
+        set_point_in_block(idx, 0);
+    }
+
+    inline void setone(int idx) {
+        if (idx < 0 || idx >= n_) return;
+        set_point_in_block(idx, 1);
+    }
+
+    inline int get(int idx) {
+        if (idx < 0 || idx >= n_) return 0;
+        const int p = size_ + (idx >> 6);
+        push_path(p);
+        return bits_.get_bit(idx);
     }
 };
-
-/*
-int main() {
-    vector<int> a = {1, 0, 1, 1, 0, 0, 1, 0};
-    LazySegTree01 seg(a);
-
-    cout << seg.range_sum(0, 8) << '\n'; // 4
-
-    seg.range_flip(2, 7);                // [2,7) を反転
-    cout << seg.range_sum(0, 8) << '\n'; // 5
-
-    seg.range_assign(1, 5, 0);           // [1,5) を全部 0
-    cout << seg.range_sum(0, 8) << '\n'; // 2
-
-    seg.range_assign(3, 8, 1);           // [3,8) を全部 1
-    cout << seg.range_sum(0, 8) << '\n'; // 6
-
-    cout << seg.get(4) << '\n';          // 1
-}
-*/
