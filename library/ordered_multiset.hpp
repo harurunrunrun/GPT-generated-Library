@@ -1,0 +1,202 @@
+// 
+
+#include <bits/stdc++.h>
+#include <ext/pb_ds/assoc_container.hpp>
+using namespace std;
+using namespace __gnu_pbds;
+
+template<class T>
+struct ordered_multiset {
+private:
+    using P = pair<T, int>;
+    using tree_type = tree<
+        P,
+        null_type,
+        less<P>,
+        rb_tree_tag,
+        tree_order_statistics_node_update
+    >;
+
+    tree_type tr;
+    int uid = 0;
+
+    static constexpr int ID_MIN = numeric_limits<int>::min();
+    static constexpr int ID_MAX = numeric_limits<int>::max();
+
+public:
+    class const_iterator {
+    private:
+        typename tree_type::const_iterator it;
+
+    public:
+        using iterator_category = bidirectional_iterator_tag;
+        using value_type = T;
+        using difference_type = ptrdiff_t;
+        using pointer = const T*;
+        using reference = const T&;
+
+        const_iterator() = default;
+        explicit const_iterator(typename tree_type::const_iterator _it) : it(_it) {}
+
+        reference operator*() const {
+            return it->first;
+        }
+
+        pointer operator->() const {
+            return &(it->first);
+        }
+
+        const_iterator& operator++() {
+            ++it;
+            return *this;
+        }
+
+        const_iterator operator++(int) {
+            const_iterator tmp = *this;
+            ++it;
+            return tmp;
+        }
+
+        const_iterator& operator--() {
+            --it;
+            return *this;
+        }
+
+        const_iterator operator--(int) {
+            const_iterator tmp = *this;
+            --it;
+            return tmp;
+        }
+
+        bool operator==(const const_iterator& other) const {
+            return it == other.it;
+        }
+
+        bool operator!=(const const_iterator& other) const {
+            return it != other.it;
+        }
+
+        typename tree_type::const_iterator base() const {
+            return it;
+        }
+    };
+
+    using reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    int size() const {
+        return (int)tr.size();
+    }
+
+    bool empty() const {
+        return tr.empty();
+    }
+
+    void clear() {
+        tr.clear();
+        uid = 0;
+    }
+
+    void insert(const T& x) {
+        tr.insert({x, uid++});
+    }
+
+    bool erase_one(const T& x) {
+        auto it = tr.lower_bound({x, ID_MIN});
+        if (it == tr.end() || it->first != x) return false;
+        tr.erase(it);
+        return true;
+    }
+
+    int erase_all(const T& x) {
+        vector<P> tmp;
+        for (auto it = tr.lower_bound({x, ID_MIN}); it != tr.upper_bound({x, ID_MAX}); ++it) {
+            tmp.push_back(*it);
+        }
+        for (const auto& p : tmp) {
+            tr.erase(p);
+        }
+        return (int)tmp.size();
+    }
+
+    const_iterator erase(const_iterator pos) {
+        auto nxt = pos.base();
+        ++nxt;
+        tr.erase(pos.base());
+        return const_iterator(nxt);
+    }
+
+    int count(const T& x) const {
+        return order_of_key_leq(x) - order_of_key(x);
+    }
+
+    bool contains(const T& x) const {
+        auto it = tr.lower_bound({x, ID_MIN});
+        return it != tr.end() && it->first == x;
+    }
+
+    const_iterator find(const T& x) const {
+        auto it = tr.lower_bound({x, ID_MIN});
+        if (it == tr.end() || it->first != x) return end();
+        return const_iterator(it);
+    }
+
+    T kth(int k) const {
+        return tr.find_by_order(k)->first;
+    }
+
+    int order_of_key(const T& x) const {
+        return (int)tr.order_of_key({x, ID_MIN});
+    }
+
+    int order_of_key_leq(const T& x) const {
+        return (int)tr.order_of_key({x, ID_MAX});
+    }
+
+    int lower_bound_index(const T& x) const {
+        return order_of_key(x);
+    }
+
+    int upper_bound_index(const T& x) const {
+        return order_of_key_leq(x);
+    }
+
+    const_iterator begin() const {
+        return const_iterator(tr.begin());
+    }
+
+    const_iterator end() const {
+        return const_iterator(tr.end());
+    }
+
+    const_iterator cbegin() const {
+        return const_iterator(tr.begin());
+    }
+
+    const_iterator cend() const {
+        return const_iterator(tr.end());
+    }
+
+    reverse_iterator rbegin() const {
+        return reverse_iterator(end());
+    }
+
+    reverse_iterator rend() const {
+        return reverse_iterator(begin());
+    }
+
+    reverse_iterator crbegin() const {
+        return reverse_iterator(cend());
+    }
+
+    reverse_iterator crend() const {
+        return reverse_iterator(cbegin());
+    }
+
+    const_iterator lower_bound(const T& x) const {
+        return const_iterator(tr.lower_bound({x, ID_MIN}));
+    }
+
+    const_iterator upper_bound(const T& x) const {
+        return const_iterator(tr.upper_bound({x, ID_MAX}));
+    }
+};
