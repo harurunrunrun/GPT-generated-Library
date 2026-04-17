@@ -4386,7 +4386,6 @@ struct AddMod998244353 {
  *
  * 用途:
  *   mod 998244353 上で矩形内の積を取りたいときに使う。
- *   今回特に入れてほしいと指定されたもの。
  */
 struct MulMod998244353 {
     using value_type = std::int64_t;
