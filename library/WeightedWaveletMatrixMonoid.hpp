@@ -1432,6 +1432,8 @@ public:
         return res;
     }
 
+
+
 private:
     int n_ = 0;
     int sigma_ = 0;
@@ -1790,6 +1792,185 @@ private:
  */
 
 
+
+
+/*
+ * IntegralBitwiseXorWaveletHelper
+ * ------------------------------
+ * 整数値に対する xor 変換付きの比較クエリ専用補助構造。
+ *
+ * 目的:
+ *   - 区間 [l, r) について
+ *       count / weight_sum of (value xor mask) < upper
+ *     を高速に求める。
+ *
+ * 注意:
+ *   - 整数型 T 専用
+ *   - 値・mask・upper は unsigned のビット列として解釈する
+ *   - 主に「Ai xor x < t」を高速に数える用途を想定している
+ */
+template <class T, class Weight, bool Enable = std::is_integral_v<T>>
+class IntegralBitwiseXorWaveletHelper;
+
+template <class T, class Weight>
+class IntegralBitwiseXorWaveletHelper<T, Weight, false> {
+public:
+    using sum_type = std::common_type_t<Weight, long long>;
+
+    void build(const std::vector<T>&, const std::vector<Weight>&) {}
+
+    std::pair<int, sum_type> count_and_weight_xor_less(int, int, const T&, const T&) const {
+        throw std::logic_error("bitwise xor queries require T to be an integral type");
+    }
+};
+
+template <class T, class Weight>
+class IntegralBitwiseXorWaveletHelper<T, Weight, true> {
+public:
+    using unsigned_value_type = std::make_unsigned_t<T>;
+    using sum_type = std::common_type_t<Weight, long long>;
+
+    /*
+     * build(values, weights)
+     * ----------------------
+     * 値列と重み列から xor 比較用の内部構造を構築する。
+     *
+     * 時間計算量:
+     *   O(N log U)
+     *   U は unsigned_value_type の値域サイズ
+     */
+    void build(const std::vector<T>& values, const std::vector<Weight>& weights) {
+        n_ = static_cast<int>(values.size());
+        original_weight_pref_.assign(n_ + 1, 0);
+        for (int i = 0; i < n_; ++i) {
+            original_weight_pref_[i + 1] = original_weight_pref_[i] + static_cast<sum_type>(weights[i]);
+        }
+
+        if (n_ == 0) {
+            levels_.clear();
+            mids_.clear();
+            zero_weight_pref_.clear();
+            level_weight_pref_.clear();
+            return;
+        }
+
+        std::vector<unsigned_value_type> cur(n_);
+        for (int i = 0; i < n_; ++i) {
+            cur[i] = static_cast<unsigned_value_type>(values[i]);
+        }
+        std::vector<Weight> cur_weight = weights;
+
+        levels_.assign(bit_size(), BitVector(n_));
+        mids_.assign(bit_size(), 0);
+        zero_weight_pref_.assign(bit_size(), std::vector<sum_type>(n_ + 1, 0));
+        level_weight_pref_.assign(bit_size(), std::vector<sum_type>(n_ + 1, 0));
+
+        std::vector<unsigned_value_type> nxt(n_);
+        std::vector<Weight> nxt_weight(n_);
+        for (int level = 0; level < bit_size(); ++level) {
+            const int shift = bit_size() - 1 - level;
+            int zero_cnt = 0;
+            zero_weight_pref_[level][0] = 0;
+            level_weight_pref_[level][0] = 0;
+            for (int i = 0; i < n_; ++i) {
+                const bool bit = ((cur[i] >> shift) & 1) != 0;
+                if (!bit) ++zero_cnt;
+                zero_weight_pref_[level][i + 1] = zero_weight_pref_[level][i]
+                    + (bit ? sum_type(0) : static_cast<sum_type>(cur_weight[i]));
+                level_weight_pref_[level][i + 1] = level_weight_pref_[level][i] + static_cast<sum_type>(cur_weight[i]);
+            }
+            mids_[level] = zero_cnt;
+
+            int zi = 0;
+            int oi = zero_cnt;
+            for (int i = 0; i < n_; ++i) {
+                const bool bit = ((cur[i] >> shift) & 1) != 0;
+                if (bit) {
+                    levels_[level].set(i);
+                    nxt[oi] = cur[i];
+                    nxt_weight[oi] = cur_weight[i];
+                    ++oi;
+                } else {
+                    nxt[zi] = cur[i];
+                    nxt_weight[zi] = cur_weight[i];
+                    ++zi;
+                }
+            }
+            levels_[level].build();
+            cur.swap(nxt);
+            cur_weight.swap(nxt_weight);
+        }
+    }
+
+    /*
+     * count_and_weight_xor_less(l, r, mask, upper)
+     * --------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * (value xor mask) < upper を満たすものの (個数, 重み和) を返す。
+     *
+     * 時間計算量:
+     *   O(log U)
+     *   U は unsigned_value_type の値域サイズ
+     */
+    std::pair<int, sum_type> count_and_weight_xor_less(
+        int l, int r, const T& mask, const T& upper
+    ) const {
+        if (l >= r || n_ == 0) return {0, 0};
+
+        unsigned_value_type x = static_cast<unsigned_value_type>(mask);
+        unsigned_value_type t = static_cast<unsigned_value_type>(upper);
+
+        int cnt = 0;
+        sum_type sum = 0;
+        for (int level = 0; level < bit_size(); ++level) {
+            const int zero_l = levels_[level].rank0(l);
+            const int zero_r = levels_[level].rank0(r);
+            const int one_l = mids_[level] + levels_[level].rank1(l);
+            const int one_r = mids_[level] + levels_[level].rank1(r);
+            const int shift = bit_size() - 1 - level;
+            const bool xb = ((x >> shift) & 1) != 0;
+            const bool tb = ((t >> shift) & 1) != 0;
+            const sum_type zero_sum = zero_weight_pref_[level][r] - zero_weight_pref_[level][l];
+            const sum_type all_sum = level_weight_pref_[level][r] - level_weight_pref_[level][l];
+            const sum_type one_sum = all_sum - zero_sum;
+
+            if (tb) {
+                if (!xb) {
+                    cnt += zero_r - zero_l;
+                    sum += zero_sum;
+                    l = one_l;
+                    r = one_r;
+                } else {
+                    cnt += one_r - one_l;
+                    sum += one_sum;
+                    l = zero_l;
+                    r = zero_r;
+                }
+            } else {
+                if (!xb) {
+                    l = zero_l;
+                    r = zero_r;
+                } else {
+                    l = one_l;
+                    r = one_r;
+                }
+            }
+        }
+        return {cnt, sum};
+    }
+
+private:
+    static constexpr int bit_size() {
+        return std::numeric_limits<unsigned_value_type>::digits;
+    }
+
+    int n_ = 0;
+    std::vector<BitVector> levels_;
+    std::vector<int> mids_;
+    std::vector<std::vector<sum_type>> zero_weight_pref_;
+    std::vector<std::vector<sum_type>> level_weight_pref_;
+    std::vector<sum_type> original_weight_pref_;
+};
 /*
  * WeightedWaveletMatrix
  * --------------------
@@ -1860,6 +2041,7 @@ public:
             zero_weight_pref_.clear();
             final_weight_pref_.clear();
             bit_size_ = 0;
+            bitwise_xor_helper_.build(data, weights);
             return;
         }
 
@@ -1926,6 +2108,8 @@ public:
         for (int i = 0; i < n_; ++i) {
             final_weight_pref_[i + 1] = final_weight_pref_[i] + static_cast<sum_type>(cur_weight[i]);
         }
+
+        bitwise_xor_helper_.build(data, weights);
     }
 
     /*
@@ -2432,6 +2616,405 @@ public:
         return res;
     }
 
+    /*
+     * count_xor_less / less_equal / range / greater / greater_equal / equal
+     * --------------------------------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * value xor mask に対する大小条件を満たす要素数を返す。
+     *
+     * 注意:
+     *   - 整数型 T 専用
+     *   - 値・mask・境界値は unsigned のビット列として解釈する
+     *   - xor 系は専用補助構造を使うため高速
+     *
+     * 時間計算量:
+     *   count_xor_less / less_equal / range / greater / greater_equal / equal:
+     *   O(log U)
+     *   U は std::make_unsigned_t<T> の値域サイズ
+     */
+    int count_xor_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_xor_less(l, r, mask, upper).first;
+    }
+
+    int count_xor_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_xor_less_equal(l, r, mask, upper).first;
+    }
+
+    int count_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_xor_range(l, r, mask, lower, upper).first;
+    }
+
+    int count_xor_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_xor_greater(l, r, mask, lower).first;
+    }
+
+    int count_xor_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_xor_greater_equal(l, r, mask, lower).first;
+    }
+
+    int count_xor_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_xor_equal(l, r, mask, target).first;
+    }
+
+    /*
+     * count_and_weight_xor_less / less_equal / range / greater / greater_equal / equal
+     * --------------------------------------------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * value xor mask に対する大小条件を満たす要素の (個数, 重み和) を返す。
+     *
+     * 注意:
+     *   - 整数型 T 専用
+     *   - 値・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log U)
+     *   U は std::make_unsigned_t<T> の値域サイズ
+     */
+    std::pair<int, sum_type> count_and_weight_xor_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        if constexpr (std::is_integral_v<T>) {
+            return bitwise_xor_helper_.count_and_weight_xor_less(l, r, mask, upper);
+        } else {
+            throw std::logic_error("xor bitwise queries require T to be an integral type");
+        }
+    }
+
+    std::pair<int, sum_type> count_and_weight_xor_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            const U u = static_cast<U>(upper);
+            if (u == std::numeric_limits<U>::max()) return {r - l, weight_sum_all(l, r)};
+            return count_and_weight_xor_less(l, r, mask, static_cast<T>(u + 1));
+        } else {
+            throw std::logic_error("xor bitwise queries require T to be an integral type");
+        }
+    }
+
+    std::pair<int, sum_type> count_and_weight_xor_range(
+        int l, int r, const T& mask, const T& lower, const T& upper
+    ) const {
+        validate_range(l, r);
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            if (static_cast<U>(lower) >= static_cast<U>(upper)) return {0, 0};
+            auto a = count_and_weight_xor_less(l, r, mask, upper);
+            auto b = count_and_weight_xor_less(l, r, mask, lower);
+            return {a.first - b.first, a.second - b.second};
+        } else {
+            throw std::logic_error("xor bitwise queries require T to be an integral type");
+        }
+    }
+
+    std::pair<int, sum_type> count_and_weight_xor_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        auto le = count_and_weight_xor_less_equal(l, r, mask, lower);
+        return {(r - l) - le.first, weight_sum_all(l, r) - le.second};
+    }
+
+    std::pair<int, sum_type> count_and_weight_xor_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        auto lt = count_and_weight_xor_less(l, r, mask, lower);
+        return {(r - l) - lt.first, weight_sum_all(l, r) - lt.second};
+    }
+
+    std::pair<int, sum_type> count_and_weight_xor_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            const U u = static_cast<U>(target);
+            if (u == std::numeric_limits<U>::max()) {
+                return count_and_weight_xor_greater_equal(l, r, mask, target);
+            }
+            return count_and_weight_xor_range(l, r, mask, target, static_cast<T>(u + 1));
+        } else {
+            throw std::logic_error("xor bitwise queries require T to be an integral type");
+        }
+    }
+
+    /*
+     * weight_sum_xor_less / less_equal / range / greater / greater_equal / equal
+     * -------------------------------------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * value xor mask に対する大小条件を満たす要素の重み和を返す。
+     *
+     * 注意:
+     *   - 整数型 T 専用
+     *   - 値・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log U)
+     *   U は std::make_unsigned_t<T> の値域サイズ
+     */
+    sum_type weight_sum_xor_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_xor_less(l, r, mask, upper).second;
+    }
+
+    sum_type weight_sum_xor_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_xor_less_equal(l, r, mask, upper).second;
+    }
+
+    sum_type weight_sum_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_xor_range(l, r, mask, lower, upper).second;
+    }
+
+    sum_type weight_sum_xor_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_xor_greater(l, r, mask, lower).second;
+    }
+
+    sum_type weight_sum_xor_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_xor_greater_equal(l, r, mask, lower).second;
+    }
+
+    sum_type weight_sum_xor_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_xor_equal(l, r, mask, target).second;
+    }
+
+    /*
+     * count_or_less / less_equal / range / greater / greater_equal / equal
+     * count_and_less / less_equal / range / greater / greater_equal / equal
+     * -------------------------------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * (value | mask) または (value & mask) に対する大小条件を満たす要素数を返す。
+     *
+     * 注意:
+     *   - 整数型 T 専用
+     *   - 値・mask・境界値は unsigned のビット列として解釈する
+     *   - or / and 系は区間内の異なる値を列挙して集計する
+     *
+     * 時間計算量:
+     *   いずれも O((m + 1) log σ)
+     *   m は区間 [l, r) に現れる異なる値の個数
+     */
+    int count_or_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_or_less(l, r, mask, upper).first;
+    }
+
+    int count_or_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_or_less_equal(l, r, mask, upper).first;
+    }
+
+    int count_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_or_range(l, r, mask, lower, upper).first;
+    }
+
+    int count_or_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_or_greater(l, r, mask, lower).first;
+    }
+
+    int count_or_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_or_greater_equal(l, r, mask, lower).first;
+    }
+
+    int count_or_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_or_equal(l, r, mask, target).first;
+    }
+
+    int count_and_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_and_less(l, r, mask, upper).first;
+    }
+
+    int count_and_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_and_less_equal(l, r, mask, upper).first;
+    }
+
+    int count_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_and_range(l, r, mask, lower, upper).first;
+    }
+
+    int count_and_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_and_greater(l, r, mask, lower).first;
+    }
+
+    int count_and_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_and_greater_equal(l, r, mask, lower).first;
+    }
+
+    int count_and_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_and_equal(l, r, mask, target).first;
+    }
+
+    /*
+     * count_and_weight_or_less / less_equal / range / greater / greater_equal / equal
+     * count_and_weight_and_less / less_equal / range / greater / greater_equal / equal
+     * --------------------------------------------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * (value | mask) または (value & mask) に対する大小条件を満たす要素の
+     * (個数, 重み和) を返す。
+     *
+     * 注意:
+     *   - 整数型 T 専用
+     *   - 値・mask・境界値は unsigned のビット列として解釈する
+     *   - or / and 系は区間内の異なる値を列挙して集計する
+     *
+     * 時間計算量:
+     *   いずれも O((m + 1) log σ)
+     *   m は区間 [l, r) に現れる異なる値の個数
+     */
+    std::pair<int, sum_type> count_and_weight_or_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_less_scan(l, r, mask, upper, BitOpKind::Or);
+    }
+
+    std::pair<int, sum_type> count_and_weight_or_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_less_equal_scan(l, r, mask, upper, BitOpKind::Or);
+    }
+
+    std::pair<int, sum_type> count_and_weight_or_range(
+        int l, int r, const T& mask, const T& lower, const T& upper
+    ) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_range_scan(l, r, mask, lower, upper, BitOpKind::Or);
+    }
+
+    std::pair<int, sum_type> count_and_weight_or_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_greater_scan(l, r, mask, lower, BitOpKind::Or);
+    }
+
+    std::pair<int, sum_type> count_and_weight_or_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_greater_equal_scan(l, r, mask, lower, BitOpKind::Or);
+    }
+
+    std::pair<int, sum_type> count_and_weight_or_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_equal_scan(l, r, mask, target, BitOpKind::Or);
+    }
+
+    std::pair<int, sum_type> count_and_weight_and_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_less_scan(l, r, mask, upper, BitOpKind::And);
+    }
+
+    std::pair<int, sum_type> count_and_weight_and_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_less_equal_scan(l, r, mask, upper, BitOpKind::And);
+    }
+
+    std::pair<int, sum_type> count_and_weight_and_range(
+        int l, int r, const T& mask, const T& lower, const T& upper
+    ) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_range_scan(l, r, mask, lower, upper, BitOpKind::And);
+    }
+
+    std::pair<int, sum_type> count_and_weight_and_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_greater_scan(l, r, mask, lower, BitOpKind::And);
+    }
+
+    std::pair<int, sum_type> count_and_weight_and_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_greater_equal_scan(l, r, mask, lower, BitOpKind::And);
+    }
+
+    std::pair<int, sum_type> count_and_weight_and_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_bitop_equal_scan(l, r, mask, target, BitOpKind::And);
+    }
+
+    /*
+     * weight_sum_or_less / less_equal / range / greater / greater_equal / equal
+     * weight_sum_and_less / less_equal / range / greater / greater_equal / equal
+     * ------------------------------------------------------------------------
+     * 区間 [l, r) に含まれる値 value について、
+     * (value | mask) または (value & mask) に対する大小条件を満たす要素の重み和を返す。
+     *
+     * 注意:
+     *   - 整数型 T 専用
+     *   - 値・mask・境界値は unsigned のビット列として解釈する
+     *   - or / and 系は区間内の異なる値を列挙して集計する
+     *
+     * 時間計算量:
+     *   いずれも O((m + 1) log σ)
+     *   m は区間 [l, r) に現れる異なる値の個数
+     */
+    sum_type weight_sum_or_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_or_less(l, r, mask, upper).second;
+    }
+
+    sum_type weight_sum_or_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_or_less_equal(l, r, mask, upper).second;
+    }
+
+    sum_type weight_sum_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_or_range(l, r, mask, lower, upper).second;
+    }
+
+    sum_type weight_sum_or_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_or_greater(l, r, mask, lower).second;
+    }
+
+    sum_type weight_sum_or_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_or_greater_equal(l, r, mask, lower).second;
+    }
+
+    sum_type weight_sum_or_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_or_equal(l, r, mask, target).second;
+    }
+
+    sum_type weight_sum_and_less(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_and_less(l, r, mask, upper).second;
+    }
+
+    sum_type weight_sum_and_less_equal(int l, int r, const T& mask, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_and_less_equal(l, r, mask, upper).second;
+    }
+
+    sum_type weight_sum_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const {
+        validate_range(l, r);
+        return count_and_weight_and_range(l, r, mask, lower, upper).second;
+    }
+
+    sum_type weight_sum_and_greater(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_and_greater(l, r, mask, lower).second;
+    }
+
+    sum_type weight_sum_and_greater_equal(int l, int r, const T& mask, const T& lower) const {
+        validate_range(l, r);
+        return count_and_weight_and_greater_equal(l, r, mask, lower).second;
+    }
+
+    sum_type weight_sum_and_equal(int l, int r, const T& mask, const T& target) const {
+        validate_range(l, r);
+        return count_and_weight_and_equal(l, r, mask, target).second;
+    }
+
 private:
     int n_ = 0;
     int sigma_ = 0;
@@ -2448,6 +3031,99 @@ private:
     std::vector<std::vector<sum_type>> zero_weight_pref_;
     std::vector<sum_type> final_weight_pref_;
 
+    enum class BitOpKind {
+        And,
+        Or,
+    };
+
+    IntegralBitwiseXorWaveletHelper<T, Weight> bitwise_xor_helper_;
+
+
+
+    template <class U>
+    static U apply_bitop_unsigned(U value, U mask, BitOpKind kind) {
+        if (kind == BitOpKind::And) return value & mask;
+        return value | mask;
+    }
+
+    std::pair<int, sum_type> count_and_weight_bitop_less_scan(
+        int l, int r, const T& mask, const T& upper, BitOpKind kind
+    ) const {
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            const U umask = static_cast<U>(mask);
+            const U uupper = static_cast<U>(upper);
+            auto entries = list_frequencies_and_weight_sums(l, r);
+            int cnt = 0;
+            sum_type sum = 0;
+            for (const auto& [value, c, wsum] : entries) {
+                const U transformed = apply_bitop_unsigned(static_cast<U>(value), umask, kind);
+                if (transformed < uupper) {
+                    cnt += c;
+                    sum += wsum;
+                }
+            }
+            return {cnt, sum};
+        } else {
+            throw std::logic_error("bitwise queries require T to be an integral type");
+        }
+    }
+
+    std::pair<int, sum_type> count_and_weight_bitop_less_equal_scan(
+        int l, int r, const T& mask, const T& upper, BitOpKind kind
+    ) const {
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            const U u = static_cast<U>(upper);
+            if (u == std::numeric_limits<U>::max()) return {r - l, weight_sum_all(l, r)};
+            return count_and_weight_bitop_less_scan(l, r, mask, static_cast<T>(u + 1), kind);
+        } else {
+            throw std::logic_error("bitwise queries require T to be an integral type");
+        }
+    }
+
+    std::pair<int, sum_type> count_and_weight_bitop_range_scan(
+        int l, int r, const T& mask, const T& lower, const T& upper, BitOpKind kind
+    ) const {
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            if (static_cast<U>(lower) >= static_cast<U>(upper)) return {0, 0};
+            auto a = count_and_weight_bitop_less_scan(l, r, mask, upper, kind);
+            auto b = count_and_weight_bitop_less_scan(l, r, mask, lower, kind);
+            return {a.first - b.first, a.second - b.second};
+        } else {
+            throw std::logic_error("bitwise queries require T to be an integral type");
+        }
+    }
+
+    std::pair<int, sum_type> count_and_weight_bitop_greater_scan(
+        int l, int r, const T& mask, const T& lower, BitOpKind kind
+    ) const {
+        auto le = count_and_weight_bitop_less_equal_scan(l, r, mask, lower, kind);
+        return {(r - l) - le.first, weight_sum_all(l, r) - le.second};
+    }
+
+    std::pair<int, sum_type> count_and_weight_bitop_greater_equal_scan(
+        int l, int r, const T& mask, const T& lower, BitOpKind kind
+    ) const {
+        auto lt = count_and_weight_bitop_less_scan(l, r, mask, lower, kind);
+        return {(r - l) - lt.first, weight_sum_all(l, r) - lt.second};
+    }
+
+    std::pair<int, sum_type> count_and_weight_bitop_equal_scan(
+        int l, int r, const T& mask, const T& target, BitOpKind kind
+    ) const {
+        if constexpr (std::is_integral_v<T>) {
+            using U = std::make_unsigned_t<T>;
+            const U u = static_cast<U>(target);
+            if (u == std::numeric_limits<U>::max()) {
+                return count_and_weight_bitop_greater_equal_scan(l, r, mask, target, kind);
+            }
+            return count_and_weight_bitop_range_scan(l, r, mask, target, static_cast<T>(u + 1), kind);
+        } else {
+            throw std::logic_error("bitwise queries require T to be an integral type");
+        }
+    }
     void check_index(int i) const {
         if (i < 0 || i >= n_) {
             throw std::out_of_range("WeightedWaveletMatrix: index out of range");
@@ -2940,6 +3616,368 @@ public:
         return wm_.count_and_weight_greater_equal(l, r, lower);
     }
 
+
+
+    /*
+     * count_xor_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * ---------------------------------------------------------------------------------
+     * x 範囲 [xl, xr) に入る点のうち、(y xor mask) に対する大小条件を満たす点数を返す。
+     *
+     * 注意:
+     *   - 整数型 Y 専用
+     *   - y・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log N + log U)
+     *   U は std::make_unsigned_t<Y> の値域サイズ
+     */
+    int count_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_xor_less(l, r, mask, upper);
+    }
+
+    int count_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_xor_less_equal(l, r, mask, upper);
+    }
+
+    int count_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_xor_range(l, r, mask, lower, upper);
+    }
+
+    int count_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_xor_greater(l, r, mask, lower);
+    }
+
+    int count_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_xor_greater_equal(l, r, mask, lower);
+    }
+
+    int count_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_xor_equal(l, r, mask, target);
+    }
+
+    /*
+     * sum_xor_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * -------------------------------------------------------------------------------
+     * x 範囲 [xl, xr) に入る点のうち、(y xor mask) に対する大小条件を満たす重み和を返す。
+     *
+     * 注意:
+     *   - 整数型 Y 専用
+     *   - y・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log N + log U)
+     *   U は std::make_unsigned_t<Y> の値域サイズ
+     */
+    sum_type sum_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_xor_less(l, r, mask, upper);
+    }
+
+    sum_type sum_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_xor_less_equal(l, r, mask, upper);
+    }
+
+    sum_type sum_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_xor_range(l, r, mask, lower, upper);
+    }
+
+    sum_type sum_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_xor_greater(l, r, mask, lower);
+    }
+
+    sum_type sum_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_xor_greater_equal(l, r, mask, lower);
+    }
+
+    sum_type sum_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_xor_equal(l, r, mask, target);
+    }
+
+    /*
+     * count_and_sum_xor_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * ------------------------------------------------------------------------------------------
+     * x 範囲 [xl, xr) に入る点のうち、(y xor mask) に対する大小条件を満たす
+     * (個数, 重み和) を返す。
+     *
+     * 注意:
+     *   - 整数型 Y 専用
+     *   - y・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log N + log U)
+     *   U は std::make_unsigned_t<Y> の値域サイズ
+     */
+    std::pair<int, sum_type> count_and_sum_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_xor_less(l, r, mask, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_xor_less_equal(l, r, mask, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_xor_range_y(
+        const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper
+    ) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_xor_range(l, r, mask, lower, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_xor_greater(l, r, mask, lower);
+    }
+
+    std::pair<int, sum_type> count_and_sum_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_xor_greater_equal(l, r, mask, lower);
+    }
+
+    std::pair<int, sum_type> count_and_sum_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_xor_equal(l, r, mask, target);
+    }
+
+    /*
+     * count_or_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * count_and_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * ---------------------------------------------------------------------------------
+     * x 範囲 [xl, xr) に入る点のうち、(y | mask) または (y & mask) に対する
+     * 大小条件を満たす点数を返す。
+     *
+     * 注意:
+     *   - 整数型 Y 専用
+     *   - y・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log N + (m + 1) log σ)
+     *   m は x 範囲 [xl, xr) に現れる異なる y の個数
+     */
+    int count_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_or_less(l, r, mask, upper);
+    }
+
+    int count_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_or_less_equal(l, r, mask, upper);
+    }
+
+    int count_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_or_range(l, r, mask, lower, upper);
+    }
+
+    int count_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_or_greater(l, r, mask, lower);
+    }
+
+    int count_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_or_greater_equal(l, r, mask, lower);
+    }
+
+    int count_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_or_equal(l, r, mask, target);
+    }
+
+    int count_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_less(l, r, mask, upper);
+    }
+
+    int count_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_less_equal(l, r, mask, upper);
+    }
+
+    int count_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_range(l, r, mask, lower, upper);
+    }
+
+    int count_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_greater(l, r, mask, lower);
+    }
+
+    int count_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_greater_equal(l, r, mask, lower);
+    }
+
+    int count_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_equal(l, r, mask, target);
+    }
+
+    /*
+     * sum_or_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * sum_and_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * -------------------------------------------------------------------------------
+     * x 範囲 [xl, xr) に入る点のうち、(y | mask) または (y & mask) に対する
+     * 大小条件を満たす重み和を返す。
+     *
+     * 注意:
+     *   - 整数型 Y 専用
+     *   - y・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log N + (m + 1) log σ)
+     *   m は x 範囲 [xl, xr) に現れる異なる y の個数
+     */
+    sum_type sum_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_or_less(l, r, mask, upper);
+    }
+
+    sum_type sum_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_or_less_equal(l, r, mask, upper);
+    }
+
+    sum_type sum_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_or_range(l, r, mask, lower, upper);
+    }
+
+    sum_type sum_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y&lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_or_greater(l, r, mask, lower);
+    }
+
+    sum_type sum_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_or_greater_equal(l, r, mask, lower);
+    }
+
+    sum_type sum_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_or_equal(l, r, mask, target);
+    }
+
+    sum_type sum_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_and_less(l, r, mask, upper);
+    }
+
+    sum_type sum_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_and_less_equal(l, r, mask, upper);
+    }
+
+    sum_type sum_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_and_range(l, r, mask, lower, upper);
+    }
+
+    sum_type sum_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_and_greater(l, r, mask, lower);
+    }
+
+    sum_type sum_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_and_greater_equal(l, r, mask, lower);
+    }
+
+    sum_type sum_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.weight_sum_and_equal(l, r, mask, target);
+    }
+
+    /*
+     * count_and_sum_or_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * count_and_sum_and_less_y / less_equal_y / range_y / greater_y / greater_equal_y / equal_y
+     * -----------------------------------------------------------------------------------------
+     * x 範囲 [xl, xr) に入る点のうち、(y | mask) または (y & mask) に対する
+     * 大小条件を満たす (個数, 重み和) を返す。
+     *
+     * 注意:
+     *   - 整数型 Y 専用
+     *   - y・mask・境界値は unsigned のビット列として解釈する
+     *
+     * 時間計算量:
+     *   いずれも O(log N + (m + 1) log σ)
+     *   m は x 範囲 [xl, xr) に現れる異なる y の個数
+     */
+    std::pair<int, sum_type> count_and_sum_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_or_less(l, r, mask, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_or_less_equal(l, r, mask, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_or_range_y(
+        const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper
+    ) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_or_range(l, r, mask, lower, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_or_greater(l, r, mask, lower);
+    }
+
+    std::pair<int, sum_type> count_and_sum_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_or_greater_equal(l, r, mask, lower);
+    }
+
+    std::pair<int, sum_type> count_and_sum_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_or_equal(l, r, mask, target);
+    }
+
+    std::pair<int, sum_type> count_and_sum_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_and_less(l, r, mask, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_and_less_equal(l, r, mask, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_and_range_y(
+        const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper
+    ) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_and_range(l, r, mask, lower, upper);
+    }
+
+    std::pair<int, sum_type> count_and_sum_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_and_greater(l, r, mask, lower);
+    }
+
+    std::pair<int, sum_type> count_and_sum_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_and_greater_equal(l, r, mask, lower);
+    }
+
+    std::pair<int, sum_type> count_and_sum_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& target) const {
+        auto [l, r] = x_index_range(xl, xr);
+        return wm_.count_and_weight_and_equal(l, r, mask, target);
+    }
     /*
      * kth_smallest_y / kth_largest_y
      * ------------------------------
