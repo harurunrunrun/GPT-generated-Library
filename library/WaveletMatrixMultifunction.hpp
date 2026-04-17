@@ -1010,6 +1010,980 @@ public:
         return range_freq_bitwise(l, r, mask, lower, upper, BitwiseOperation::And);
     }
 
+    /*
+     * count_less_equal_bitwise(l, r, mask, upper, op)
+     * -----------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が upper 以下である個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    int count_less_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r || raw_bit_size_ == 0) return 0;
+        if (inclusive_upper_covers_all_bitwise_values(upper)) return r - l;
+        return count_less_bitwise(l, r, mask, upper + 1, op);
+    }
+
+    /*
+     * count_equal_bitwise(l, r, mask, value, op)
+     * ------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) がちょうど value に等しい個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_bitwise を 2 回呼ぶので、それに準ずる
+     */
+    int count_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long value, BitwiseOperation op) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return count_less_equal_bitwise(l, r, mask, value, op)
+             - count_less_bitwise(l, r, mask, value, op);
+    }
+
+    /*
+     * count_greater_bitwise(l, r, mask, lower, op)
+     * --------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower より大きい個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_equal_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    int count_greater_bitwise(int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return (r - l) - count_less_equal_bitwise(l, r, mask, lower, op);
+    }
+
+    /*
+     * count_greater_equal_bitwise(l, r, mask, lower, op)
+     * --------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower 以上である個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    int count_greater_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return (r - l) - count_less_bitwise(l, r, mask, lower, op);
+    }
+
+    /*
+     * count_less_equal_xor(l, r, mask, upper)
+     * ---------------------------------------
+     * 区間 [l, r) において (value xor mask) <= upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int count_less_equal_xor(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return count_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_equal_xor(l, r, mask, value)
+     * ----------------------------------
+     * 区間 [l, r) において (value xor mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int count_equal_xor(int l, int r, unsigned long long mask, unsigned long long value) const {
+        return count_equal_bitwise(l, r, mask, value, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_greater_xor(l, r, mask, lower)
+     * ------------------------------------
+     * 区間 [l, r) において (value xor mask) > lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int count_greater_xor(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return count_greater_bitwise(l, r, mask, lower, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_greater_equal_xor(l, r, mask, lower)
+     * ------------------------------------------
+     * 区間 [l, r) において (value xor mask) >= lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int count_greater_equal_xor(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return count_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_less_equal_or(l, r, mask, upper)
+     * --------------------------------------
+     * 区間 [l, r) において (value | mask) <= upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_equal_or(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return count_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_equal_or(l, r, mask, value)
+     * ---------------------------------
+     * 区間 [l, r) において (value | mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_equal_or(int l, int r, unsigned long long mask, unsigned long long value) const {
+        return count_equal_bitwise(l, r, mask, value, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_greater_or(l, r, mask, lower)
+     * -----------------------------------
+     * 区間 [l, r) において (value | mask) > lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_greater_or(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return count_greater_bitwise(l, r, mask, lower, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_greater_equal_or(l, r, mask, lower)
+     * -----------------------------------------
+     * 区間 [l, r) において (value | mask) >= lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_greater_equal_or(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return count_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_less_equal_and(l, r, mask, upper)
+     * ---------------------------------------
+     * 区間 [l, r) において (value & mask) <= upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_equal_and(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return count_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * count_equal_and(l, r, mask, value)
+     * ----------------------------------
+     * 区間 [l, r) において (value & mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_equal_and(int l, int r, unsigned long long mask, unsigned long long value) const {
+        return count_equal_bitwise(l, r, mask, value, BitwiseOperation::And);
+    }
+
+    /*
+     * count_greater_and(l, r, mask, lower)
+     * ------------------------------------
+     * 区間 [l, r) において (value & mask) > lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_greater_and(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return count_greater_bitwise(l, r, mask, lower, BitwiseOperation::And);
+    }
+
+    /*
+     * count_greater_equal_and(l, r, mask, lower)
+     * ------------------------------------------
+     * 区間 [l, r) において (value & mask) >= lower の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_greater_equal_and(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return count_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::And);
+    }
+
+    /*
+     * count_and_sum_less_bitwise(l, r, mask, upper, op)
+     * -------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が upper 未満である要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   XOR のとき O(W)
+     *   OR / AND のとき O(M)
+     *   W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        ensure_sum_supported();
+        if (l == r || upper == 0 || raw_bit_size_ == 0) return {0, 0};
+        if (upper_covers_all_bitwise_values(upper)) return {r - l, sum_all(l, r)};
+
+        const unsigned_value_type normalized_mask = static_cast<unsigned_value_type>(mask);
+        switch (op) {
+            case BitwiseOperation::Xor:
+                return count_and_sum_less_xor_impl(l, r, normalized_mask, upper);
+            case BitwiseOperation::Or:
+                return count_and_sum_less_or_impl(l, r, normalized_mask, upper);
+            case BitwiseOperation::And:
+                return count_and_sum_less_and_impl(l, r, normalized_mask, upper);
+        }
+        throw std::logic_error("count_and_sum_less_bitwise: unknown operation");
+    }
+
+    /*
+     * count_and_sum_less_equal_bitwise(l, r, mask, upper, op)
+     * -------------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が upper 以下である要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_less_equal_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        ensure_sum_supported();
+        if (l == r || raw_bit_size_ == 0) return {0, 0};
+        if (inclusive_upper_covers_all_bitwise_values(upper)) return {r - l, sum_all(l, r)};
+        return count_and_sum_less_bitwise(l, r, mask, upper + 1, op);
+    }
+
+    /*
+     * count_and_sum_range_bitwise(l, r, mask, lower, upper, op)
+     * ---------------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower <= x < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_range_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        ensure_sum_supported();
+        if (lower >= upper) return {0, 0};
+        const auto rhs = count_and_sum_less_bitwise(l, r, mask, upper, op);
+        const auto lhs = count_and_sum_less_bitwise(l, r, mask, lower, op);
+        return {rhs.first - lhs.first, rhs.second - lhs.second};
+    }
+
+    /*
+     * count_and_sum_greater_bitwise(l, r, mask, lower, op)
+     * ----------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower より大きい要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_equal_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_greater_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        ensure_sum_supported();
+        const auto [cnt_le, sum_le] = count_and_sum_less_equal_bitwise(l, r, mask, lower, op);
+        return {(r - l) - cnt_le, sum_all(l, r) - sum_le};
+    }
+
+    /*
+     * count_and_sum_greater_equal_bitwise(l, r, mask, lower, op)
+     * ----------------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower 以上の要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_greater_equal_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        ensure_sum_supported();
+        const auto [cnt_lt, sum_lt] = count_and_sum_less_bitwise(l, r, mask, lower, op);
+        return {(r - l) - cnt_lt, sum_all(l, r) - sum_lt};
+    }
+
+    /*
+     * sum_less_bitwise(l, r, mask, upper, op)
+     * ---------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が upper 未満である要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_less_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        return count_and_sum_less_bitwise(l, r, mask, upper, op).second;
+    }
+
+    /*
+     * sum_less_equal_bitwise(l, r, mask, upper, op)
+     * ---------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が upper 以下である要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_equal_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_less_equal_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        return count_and_sum_less_equal_bitwise(l, r, mask, upper, op).second;
+    }
+
+    /*
+     * sum_equal_bitwise(l, r, mask, value, op)
+     * ----------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) がちょうど value に等しい要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる
+     */
+    sum_type sum_equal_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long value,
+        BitwiseOperation op
+    ) const {
+        return count_and_sum_less_equal_bitwise(l, r, mask, value, op).second
+             - count_and_sum_less_bitwise(l, r, mask, value, op).second;
+    }
+
+    /*
+     * sum_range_bitwise(l, r, mask, lower, upper, op)
+     * -----------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower <= x < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる
+     */
+    sum_type sum_range_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        return count_and_sum_range_bitwise(l, r, mask, lower, upper, op).second;
+    }
+
+    /*
+     * sum_greater_bitwise(l, r, mask, lower, op)
+     * ------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower より大きい要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_greater_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_greater_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        BitwiseOperation op
+    ) const {
+        return count_and_sum_greater_bitwise(l, r, mask, lower, op).second;
+    }
+
+    /*
+     * sum_greater_equal_bitwise(l, r, mask, lower, op)
+     * ------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower 以上の要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_greater_equal_bitwise を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_greater_equal_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        BitwiseOperation op
+    ) const {
+        return count_and_sum_greater_equal_bitwise(l, r, mask, lower, op).second;
+    }
+
+    /*
+     * count_and_sum_less_xor(l, r, mask, upper)
+     * -----------------------------------------
+     * 区間 [l, r) において (value xor mask) < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::pair<int, sum_type> count_and_sum_less_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_less_bitwise(l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_and_sum_less_equal_xor(l, r, mask, upper)
+     * -----------------------------------------------
+     * 区間 [l, r) において (value xor mask) <= upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::pair<int, sum_type> count_and_sum_less_equal_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_and_sum_range_xor(l, r, mask, lower, upper)
+     * -------------------------------------------------
+     * 区間 [l, r) において lower <= (value xor mask) < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::pair<int, sum_type> count_and_sum_range_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_range_bitwise(l, r, mask, lower, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_and_sum_greater_xor(l, r, mask, lower)
+     * --------------------------------------------
+     * 区間 [l, r) において (value xor mask) > lower を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::pair<int, sum_type> count_and_sum_greater_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower
+    ) const {
+        return count_and_sum_greater_bitwise(l, r, mask, lower, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_and_sum_greater_equal_xor(l, r, mask, lower)
+     * --------------------------------------------------
+     * 区間 [l, r) において (value xor mask) >= lower を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::pair<int, sum_type> count_and_sum_greater_equal_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower
+    ) const {
+        return count_and_sum_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::Xor);
+    }
+
+    /*
+     * sum_less_xor(l, r, mask, upper)
+     * --------------------------------
+     * 区間 [l, r) において (value xor mask) < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    sum_type sum_less_xor(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return sum_less_bitwise(l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * sum_less_equal_xor(l, r, mask, upper)
+     * -------------------------------------
+     * 区間 [l, r) において (value xor mask) <= upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    sum_type sum_less_equal_xor(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return sum_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * sum_equal_xor(l, r, mask, value)
+     * --------------------------------
+     * 区間 [l, r) において (value xor mask) == value を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    sum_type sum_equal_xor(int l, int r, unsigned long long mask, unsigned long long value) const {
+        return sum_equal_bitwise(l, r, mask, value, BitwiseOperation::Xor);
+    }
+
+    /*
+     * sum_range_xor(l, r, mask, lower, upper)
+     * ---------------------------------------
+     * 区間 [l, r) において lower <= (value xor mask) < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    sum_type sum_range_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return sum_range_bitwise(l, r, mask, lower, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * sum_greater_xor(l, r, mask, lower)
+     * ----------------------------------
+     * 区間 [l, r) において (value xor mask) > lower を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    sum_type sum_greater_xor(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return sum_greater_bitwise(l, r, mask, lower, BitwiseOperation::Xor);
+    }
+
+    /*
+     * sum_greater_equal_xor(l, r, mask, lower)
+     * ----------------------------------------
+     * 区間 [l, r) において (value xor mask) >= lower を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    sum_type sum_greater_equal_xor(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return sum_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_and_sum_less_or(l, r, mask, upper)
+     * ----------------------------------------
+     * 区間 [l, r) において (value | mask) < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_less_bitwise(l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_and_sum_less_equal_or(l, r, mask, upper)
+     * ----------------------------------------------
+     * 区間 [l, r) において (value | mask) <= upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_equal_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_and_sum_range_or(l, r, mask, lower, upper)
+     * ------------------------------------------------
+     * 区間 [l, r) において lower <= (value | mask) < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_or を 2 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_range_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_range_bitwise(l, r, mask, lower, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_and_sum_greater_or(l, r, mask, lower)
+     * -------------------------------------------
+     * 区間 [l, r) において (value | mask) > lower を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_equal_or を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_greater_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower
+    ) const {
+        return count_and_sum_greater_bitwise(l, r, mask, lower, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_and_sum_greater_equal_or(l, r, mask, lower)
+     * -------------------------------------------------
+     * 区間 [l, r) において (value | mask) >= lower を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_or を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_greater_equal_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower
+    ) const {
+        return count_and_sum_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::Or);
+    }
+
+    /*
+     * sum_less_or(l, r, mask, upper)
+     * -------------------------------
+     * 区間 [l, r) において (value | mask) < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_or を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_less_or(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return sum_less_bitwise(l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * sum_less_equal_or(l, r, mask, upper)
+     * ------------------------------------
+     * 区間 [l, r) において (value | mask) <= upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_equal_or を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_less_equal_or(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return sum_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * sum_equal_or(l, r, mask, value)
+     * -------------------------------
+     * 区間 [l, r) において (value | mask) == value を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_or を 2 回呼ぶので、それに準ずる
+     */
+    sum_type sum_equal_or(int l, int r, unsigned long long mask, unsigned long long value) const {
+        return sum_equal_bitwise(l, r, mask, value, BitwiseOperation::Or);
+    }
+
+    /*
+     * sum_range_or(l, r, mask, lower, upper)
+     * --------------------------------------
+     * 区間 [l, r) において lower <= (value | mask) < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_or を 2 回呼ぶので、それに準ずる
+     */
+    sum_type sum_range_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return sum_range_bitwise(l, r, mask, lower, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * sum_greater_or(l, r, mask, lower)
+     * ---------------------------------
+     * 区間 [l, r) において (value | mask) > lower を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_greater_or を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_greater_or(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return sum_greater_bitwise(l, r, mask, lower, BitwiseOperation::Or);
+    }
+
+    /*
+     * sum_greater_equal_or(l, r, mask, lower)
+     * ---------------------------------------
+     * 区間 [l, r) において (value | mask) >= lower を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_greater_equal_or を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_greater_equal_or(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return sum_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_and_sum_less_and(l, r, mask, upper)
+     * -----------------------------------------
+     * 区間 [l, r) において (value & mask) < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_less_bitwise(l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * count_and_sum_less_equal_and(l, r, mask, upper)
+     * -----------------------------------------------
+     * 区間 [l, r) において (value & mask) <= upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_equal_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * count_and_sum_range_and(l, r, mask, lower, upper)
+     * -------------------------------------------------
+     * 区間 [l, r) において lower <= (value & mask) < upper を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_and を 2 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_range_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return count_and_sum_range_bitwise(l, r, mask, lower, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * count_and_sum_greater_and(l, r, mask, lower)
+     * --------------------------------------------
+     * 区間 [l, r) において (value & mask) > lower を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_equal_and を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_greater_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower
+    ) const {
+        return count_and_sum_greater_bitwise(l, r, mask, lower, BitwiseOperation::And);
+    }
+
+    /*
+     * count_and_sum_greater_equal_and(l, r, mask, lower)
+     * --------------------------------------------------
+     * 区間 [l, r) において (value & mask) >= lower を満たす要素について、
+     * (個数, 元の value の総和) を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_and を 1 回呼ぶので、それに準ずる
+     */
+    std::pair<int, sum_type> count_and_sum_greater_equal_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower
+    ) const {
+        return count_and_sum_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::And);
+    }
+
+    /*
+     * sum_less_and(l, r, mask, upper)
+     * --------------------------------
+     * 区間 [l, r) において (value & mask) < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_and を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_less_and(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return sum_less_bitwise(l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * sum_less_equal_and(l, r, mask, upper)
+     * -------------------------------------
+     * 区間 [l, r) において (value & mask) <= upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_equal_and を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_less_equal_and(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return sum_less_equal_bitwise(l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * sum_equal_and(l, r, mask, value)
+     * --------------------------------
+     * 区間 [l, r) において (value & mask) == value を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_and を 2 回呼ぶので、それに準ずる
+     */
+    sum_type sum_equal_and(int l, int r, unsigned long long mask, unsigned long long value) const {
+        return sum_equal_bitwise(l, r, mask, value, BitwiseOperation::And);
+    }
+
+    /*
+     * sum_range_and(l, r, mask, lower, upper)
+     * ---------------------------------------
+     * 区間 [l, r) において lower <= (value & mask) < upper を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_less_and を 2 回呼ぶので、それに準ずる
+     */
+    sum_type sum_range_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return sum_range_bitwise(l, r, mask, lower, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * sum_greater_and(l, r, mask, lower)
+     * ----------------------------------
+     * 区間 [l, r) において (value & mask) > lower を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_greater_and を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_greater_and(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return sum_greater_bitwise(l, r, mask, lower, BitwiseOperation::And);
+    }
+
+    /*
+     * sum_greater_equal_and(l, r, mask, lower)
+     * ----------------------------------------
+     * 区間 [l, r) において (value & mask) >= lower を満たす要素の、
+     * 元の value の総和を返す。
+     *
+     * 時間計算量:
+     *   count_and_sum_greater_equal_and を 1 回呼ぶので、それに準ずる
+     */
+    sum_type sum_greater_equal_and(int l, int r, unsigned long long mask, unsigned long long lower) const {
+        return sum_greater_equal_bitwise(l, r, mask, lower, BitwiseOperation::And);
+    }
+
 
     /*
      * count_and_sum_less(l, r, upper)
@@ -1534,6 +2508,8 @@ private:
     int raw_bit_size_ = 0;
     std::vector<BitVector> raw_levels_;
     std::vector<int> raw_mids_;
+    std::vector<std::vector<sum_type>> raw_total_sum_pref_;
+    std::vector<std::vector<sum_type>> raw_zero_sum_pref_;
 
     /*
      * check_index(i)
@@ -1717,10 +2693,19 @@ private:
             raw_bit_size_ = 0;
             raw_levels_.clear();
             raw_mids_.clear();
+            raw_total_sum_pref_.clear();
+            raw_zero_sum_pref_.clear();
         } else {
             raw_bit_size_ = std::numeric_limits<unsigned_value_type>::digits;
             raw_levels_.assign(raw_bit_size_, BitVector(n_));
             raw_mids_.assign(raw_bit_size_, 0);
+            if constexpr (has_sum_support) {
+                raw_total_sum_pref_.assign(raw_bit_size_, std::vector<sum_type>(n_ + 1, 0));
+                raw_zero_sum_pref_.assign(raw_bit_size_, std::vector<sum_type>(n_ + 1, 0));
+            } else {
+                raw_total_sum_pref_.clear();
+                raw_zero_sum_pref_.clear();
+            }
             if (n_ == 0) return;
 
             std::vector<unsigned_value_type> cur(n_);
@@ -1729,12 +2714,30 @@ private:
             }
 
             std::vector<unsigned_value_type> nxt(n_);
+            std::vector<sum_type> cur_sum;
+            std::vector<sum_type> nxt_sum;
+            if constexpr (has_sum_support) {
+                cur_sum.resize(n_);
+                nxt_sum.resize(n_);
+                for (int i = 0; i < n_; ++i) {
+                    cur_sum[i] = static_cast<sum_type>(data[i]);
+                }
+            }
+
             for (int level = 0; level < raw_bit_size_; ++level) {
                 const int shift = raw_bit_size_ - 1 - level;
                 int zero_cnt = 0;
+                if constexpr (has_sum_support) {
+                    raw_total_sum_pref_[level][0] = 0;
+                    raw_zero_sum_pref_[level][0] = 0;
+                }
                 for (int i = 0; i < n_; ++i) {
                     const bool bit = ((cur[i] >> shift) & static_cast<unsigned_value_type>(1)) != 0;
                     if (!bit) ++zero_cnt;
+                    if constexpr (has_sum_support) {
+                        raw_total_sum_pref_[level][i + 1] = raw_total_sum_pref_[level][i] + cur_sum[i];
+                        raw_zero_sum_pref_[level][i + 1] = raw_zero_sum_pref_[level][i] + (bit ? 0 : cur_sum[i]);
+                    }
                 }
                 raw_mids_[level] = zero_cnt;
 
@@ -1744,13 +2747,20 @@ private:
                     const bool bit = ((cur[i] >> shift) & static_cast<unsigned_value_type>(1)) != 0;
                     if (bit) {
                         raw_levels_[level].set(i);
-                        nxt[oi++] = cur[i];
+                        nxt[oi] = cur[i];
+                        if constexpr (has_sum_support) nxt_sum[oi] = cur_sum[i];
+                        ++oi;
                     } else {
-                        nxt[zi++] = cur[i];
+                        nxt[zi] = cur[i];
+                        if constexpr (has_sum_support) nxt_sum[zi] = cur_sum[i];
+                        ++zi;
                     }
                 }
                 raw_levels_[level].build();
                 cur.swap(nxt);
+                if constexpr (has_sum_support) {
+                    cur_sum.swap(nxt_sum);
+                }
             }
         }
     }
@@ -1778,6 +2788,82 @@ private:
         if (raw_bit_size_ <= 0) return true;
         if (raw_bit_size_ >= 64) return false;
         return upper >= (1ULL << raw_bit_size_);
+    }
+
+    /*
+     * inclusive_upper_covers_all_bitwise_values(upper)
+     * ------------------------------------------------
+     * bitwise クエリの比較対象 upper が取り得る全値域を inclusive に覆うか判定する。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    bool inclusive_upper_covers_all_bitwise_values(unsigned long long upper) const {
+        if (raw_bit_size_ <= 0) return true;
+        if (raw_bit_size_ >= 64) {
+            return upper == std::numeric_limits<unsigned long long>::max();
+        }
+        return upper >= ((1ULL << raw_bit_size_) - 1);
+    }
+
+    /*
+     * raw_total_sum_in_range(level, l, r)
+     * -----------------------------------
+     * bitwise クエリ用内部構造の level における現在の並びで、
+     * 区間 [l, r) に含まれる元の値の総和を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    sum_type raw_total_sum_in_range(int level, int l, int r) const {
+        if constexpr (has_sum_support) {
+            return raw_total_sum_pref_[level][r] - raw_total_sum_pref_[level][l];
+        } else {
+            (void)level;
+            (void)l;
+            (void)r;
+            return 0;
+        }
+    }
+
+    /*
+     * raw_zero_sum_in_range(level, l, r)
+     * ----------------------------------
+     * bitwise クエリ用内部構造の level において、現在区間 [l, r) のうち
+     * 次レベルで 0 側へ落ちる要素の元の値の総和を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    sum_type raw_zero_sum_in_range(int level, int l, int r) const {
+        if constexpr (has_sum_support) {
+            return raw_zero_sum_pref_[level][r] - raw_zero_sum_pref_[level][l];
+        } else {
+            (void)level;
+            (void)l;
+            (void)r;
+            return 0;
+        }
+    }
+
+    /*
+     * raw_one_sum_in_range(level, l, r)
+     * ---------------------------------
+     * bitwise クエリ用内部構造の level において、現在区間 [l, r) のうち
+     * 次レベルで 1 側へ落ちる要素の元の値の総和を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    sum_type raw_one_sum_in_range(int level, int l, int r) const {
+        if constexpr (has_sum_support) {
+            return raw_total_sum_in_range(level, l, r) - raw_zero_sum_in_range(level, l, r);
+        } else {
+            (void)level;
+            (void)l;
+            (void)r;
+            return 0;
+        }
     }
 
     /*
@@ -1900,6 +2986,102 @@ private:
      */
     int count_less_and_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
         return count_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * count_and_sum_less_bitwise_dfs(depth, l, r, mask, upper, op)
+     * -------------------------------------------------------------
+     * 深さ depth のノード区間 [l, r) について、
+     * bitwise 演算後の値が upper 未満である要素の
+     * (個数, 元の value の総和) を数える内部 DFS。
+     *
+     * 時間計算量:
+     *   XOR のとき O(W)
+     *   OR / AND のとき O(M)
+     *   W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_bitwise_dfs(
+        int depth,
+        int l,
+        int r,
+        unsigned_value_type mask,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        if (l >= r || depth >= raw_bit_size_) return {0, 0};
+
+        const int shift = raw_bit_size_ - 1 - depth;
+        const bool mask_bit = ((mask >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+        const bool upper_bit = ((upper >> shift) & 1ULL) != 0;
+        const auto child = raw_child_ranges(depth, l, r);
+        const sum_type zero_sum = raw_zero_sum_in_range(depth, l, r);
+        const sum_type one_sum = raw_one_sum_in_range(depth, l, r);
+
+        std::pair<int, sum_type> res{0, 0};
+        if (child.zero_l < child.zero_r) {
+            const bool transformed = apply_bitwise_bit(false, mask_bit, op);
+            if (transformed < upper_bit) {
+                res.first += child.zero_r - child.zero_l;
+                res.second += zero_sum;
+            } else if (transformed == upper_bit) {
+                const auto sub = count_and_sum_less_bitwise_dfs(depth + 1, child.zero_l, child.zero_r, mask, upper, op);
+                res.first += sub.first;
+                res.second += sub.second;
+            }
+        }
+        if (child.one_l < child.one_r) {
+            const bool transformed = apply_bitwise_bit(true, mask_bit, op);
+            if (transformed < upper_bit) {
+                res.first += child.one_r - child.one_l;
+                res.second += one_sum;
+            } else if (transformed == upper_bit) {
+                const auto sub = count_and_sum_less_bitwise_dfs(depth + 1, child.one_l, child.one_r, mask, upper, op);
+                res.first += sub.first;
+                res.second += sub.second;
+            }
+        }
+        return res;
+    }
+
+    /*
+     * count_and_sum_less_xor_impl(l, r, mask, upper)
+     * ----------------------------------------------
+     * 区間 [l, r) において (value xor mask) < upper を満たす要素の
+     * (個数, 元の value の総和) を返す内部関数。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::pair<int, sum_type> count_and_sum_less_xor_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        return count_and_sum_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_and_sum_less_or_impl(l, r, mask, upper)
+     * ---------------------------------------------
+     * 区間 [l, r) において (value | mask) < upper を満たす要素の
+     * (個数, 元の value の総和) を返す内部関数。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_or_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        return count_and_sum_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_and_sum_less_and_impl(l, r, mask, upper)
+     * ----------------------------------------------
+     * 区間 [l, r) において (value & mask) < upper を満たす要素の
+     * (個数, 元の value の総和) を返す内部関数。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::pair<int, sum_type> count_and_sum_less_and_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        return count_and_sum_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::And);
     }
 
     /*
