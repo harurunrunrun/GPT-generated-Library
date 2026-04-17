@@ -9,6 +9,7 @@ Please refer to the GitHub repository above for evidence that they were generate
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <queue>
 #include <stdexcept>
@@ -280,6 +281,16 @@ private:
     bool built = false;
 };
 
+template <class U, bool = std::is_integral_v<U>>
+struct WaveletMatrixBitwiseUnsignedHelper {
+    using type = unsigned long long;
+};
+
+template <class U>
+struct WaveletMatrixBitwiseUnsignedHelper<U, true> {
+    using type = std::make_unsigned_t<U>;
+};
+
 /*
  * WaveletMatrix
  * -------------
@@ -291,6 +302,7 @@ private:
  *   - kth_smallest / kth_largest
  *   - range_freq
  *   - predecessor / successor
+ *   - bitwise 演算後の count_less / range_freq (XOR / OR / AND)
  *   - top-k frequent
  *   - 共通要素列挙
  *   - 区間内の値と頻度の列挙
@@ -309,6 +321,8 @@ public:
     using value_type = T;
     using sum_type = long long;
     static constexpr bool has_sum_support = std::is_convertible_v<T, sum_type>;
+    static constexpr bool has_bitwise_support = std::is_integral_v<T>;
+    using unsigned_value_type = typename WaveletMatrixBitwiseUnsignedHelper<T>::type;
 
     WaveletMatrix() = default;
 
@@ -363,6 +377,8 @@ public:
             coord_sum_values_.clear();
             original_sum_pref_.assign(n_ + 1, 0);
         }
+
+        build_bitwise_support(data);
 
         if (n_ == 0) {
             levels_.clear();
@@ -830,6 +846,168 @@ public:
     int count_less_equal(int l, int r, const T& upper) const {
         validate_range(l, r);
         return range_freq_id(l, r, upper_bound_id(upper));
+    }
+
+    /*
+     * BitwiseOperation
+     * ----------------
+     * bitwise 閾値クエリで使う演算種別。
+     *
+     *   Xor : (value xor mask)
+     *   Or  : (value | mask)
+     *   And : (value & mask)
+     */
+    enum class BitwiseOperation {
+        Xor,
+        Or,
+        And,
+    };
+
+    /*
+     * count_less_bitwise(l, r, mask, upper, op)
+     * -----------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が upper 未満である個数を返す。
+     *
+     * 注意:
+     *   - T が整数型のときのみ使用できる
+     *   - 値は unsigned 表現として扱われる
+     *   - 問題のような「value xor mask < upper」の個数取得に使える
+     *
+     * 時間計算量:
+     *   XOR のとき O(W)
+     *   OR / AND のとき O(M)
+     *   W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_bitwise(int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r || upper == 0) return 0;
+        if (raw_bit_size_ == 0) return 0;
+        if (upper_covers_all_bitwise_values(upper)) return r - l;
+
+        const unsigned_value_type normalized_mask = static_cast<unsigned_value_type>(mask);
+        switch (op) {
+            case BitwiseOperation::Xor:
+                return count_less_xor_impl(l, r, normalized_mask, upper);
+            case BitwiseOperation::Or:
+                return count_less_or_impl(l, r, normalized_mask, upper);
+            case BitwiseOperation::And:
+                return count_less_and_impl(l, r, normalized_mask, upper);
+        }
+        throw std::logic_error("count_less_bitwise: unknown operation");
+    }
+
+    /*
+     * range_freq_bitwise(l, r, mask, lower, upper, op)
+     * ------------------------------------------------
+     * 区間 [l, r) において、各要素 value に bitwise 演算を施した
+     * 結果 op(value, mask) が lower <= x < upper を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_bitwise を 2 回呼ぶので、それに準ずる
+     */
+    int range_freq_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (lower >= upper) return 0;
+        return count_less_bitwise(l, r, mask, upper, op)
+             - count_less_bitwise(l, r, mask, lower, op);
+    }
+
+    /*
+     * count_less_xor(l, r, mask, upper)
+     * ---------------------------------
+     * 区間 [l, r) において (value xor mask) < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int count_less_xor(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return count_less_bitwise(l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * range_freq_xor(l, r, mask, lower, upper)
+     * ----------------------------------------
+     * 区間 [l, r) において lower <= (value xor mask) < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int range_freq_xor(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return range_freq_bitwise(l, r, mask, lower, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_less_or(l, r, mask, upper)
+     * --------------------------------
+     * 区間 [l, r) において (value | mask) < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_or(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return count_less_bitwise(l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * range_freq_or(l, r, mask, lower, upper)
+     * ---------------------------------------
+     * 区間 [l, r) において lower <= (value | mask) < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_or を 2 回呼ぶので、それに準ずる
+     */
+    int range_freq_or(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return range_freq_bitwise(l, r, mask, lower, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_less_and(l, r, mask, upper)
+     * ---------------------------------
+     * 区間 [l, r) において (value & mask) < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_and(int l, int r, unsigned long long mask, unsigned long long upper) const {
+        return count_less_bitwise(l, r, mask, upper, BitwiseOperation::And);
+    }
+
+    /*
+     * range_freq_and(l, r, mask, lower, upper)
+     * ----------------------------------------
+     * 区間 [l, r) において lower <= (value & mask) < upper の個数を返す。
+     *
+     * 時間計算量:
+     *   count_less_and を 2 回呼ぶので、それに準ずる
+     */
+    int range_freq_and(
+        int l, int r,
+        unsigned long long mask,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        return range_freq_bitwise(l, r, mask, lower, upper, BitwiseOperation::And);
     }
 
 
@@ -1353,6 +1531,9 @@ private:
     std::vector<sum_type> coord_sum_values_;
     std::vector<sum_type> original_sum_pref_;
     std::vector<std::vector<sum_type>> zero_sum_pref_;
+    int raw_bit_size_ = 0;
+    std::vector<BitVector> raw_levels_;
+    std::vector<int> raw_mids_;
 
     /*
      * check_index(i)
@@ -1511,6 +1692,214 @@ private:
             }
         }
         return cnt;
+    }
+
+    struct RawChildRanges {
+        int zero_l;
+        int zero_r;
+        int one_l;
+        int one_r;
+    };
+
+    /*
+     * build_bitwise_support(data)
+     * ---------------------------
+     * bitwise 閾値クエリ用の内部 Wavelet Matrix を構築する。
+     * 値そのもののビット列で構築し、XOR / OR / AND 後の比較に使う。
+     *
+     * 時間計算量:
+     *   O(NW)
+     *   W は unsigned(T) のビット幅
+     */
+    void build_bitwise_support(const std::vector<T>& data) {
+        if constexpr (!has_bitwise_support) {
+            (void)data;
+            raw_bit_size_ = 0;
+            raw_levels_.clear();
+            raw_mids_.clear();
+        } else {
+            raw_bit_size_ = std::numeric_limits<unsigned_value_type>::digits;
+            raw_levels_.assign(raw_bit_size_, BitVector(n_));
+            raw_mids_.assign(raw_bit_size_, 0);
+            if (n_ == 0) return;
+
+            std::vector<unsigned_value_type> cur(n_);
+            for (int i = 0; i < n_; ++i) {
+                cur[i] = static_cast<unsigned_value_type>(data[i]);
+            }
+
+            std::vector<unsigned_value_type> nxt(n_);
+            for (int level = 0; level < raw_bit_size_; ++level) {
+                const int shift = raw_bit_size_ - 1 - level;
+                int zero_cnt = 0;
+                for (int i = 0; i < n_; ++i) {
+                    const bool bit = ((cur[i] >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+                    if (!bit) ++zero_cnt;
+                }
+                raw_mids_[level] = zero_cnt;
+
+                int zi = 0;
+                int oi = zero_cnt;
+                for (int i = 0; i < n_; ++i) {
+                    const bool bit = ((cur[i] >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+                    if (bit) {
+                        raw_levels_[level].set(i);
+                        nxt[oi++] = cur[i];
+                    } else {
+                        nxt[zi++] = cur[i];
+                    }
+                }
+                raw_levels_[level].build();
+                cur.swap(nxt);
+            }
+        }
+    }
+
+    /*
+     * ensure_bitwise_supported()
+     * --------------------------
+     * bitwise 閾値クエリを使える型かどうかを検査する。
+     */
+    void ensure_bitwise_supported() const {
+        if constexpr (!has_bitwise_support) {
+            throw std::logic_error("bitwise queries require T to be an integral type");
+        }
+    }
+
+    /*
+     * upper_covers_all_bitwise_values(upper)
+     * --------------------------------------
+     * bitwise クエリの比較対象 upper が取り得る全値域を覆うか判定する。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    bool upper_covers_all_bitwise_values(unsigned long long upper) const {
+        if (raw_bit_size_ <= 0) return true;
+        if (raw_bit_size_ >= 64) return false;
+        return upper >= (1ULL << raw_bit_size_);
+    }
+
+    /*
+     * raw_child_ranges(level, l, r)
+     * -----------------------------
+     * bitwise クエリ用内部構造の level において、現在区間 [l, r) を
+     * 次レベルの 0 側 / 1 側へ写した区間を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    RawChildRanges raw_child_ranges(int level, int l, int r) const {
+        const auto& bv = raw_levels_[level];
+        const int zero_l = bv.rank0(l);
+        const int zero_r = bv.rank0(r);
+        const int one_l = raw_mids_[level] + bv.rank1(l);
+        const int one_r = raw_mids_[level] + bv.rank1(r);
+        return RawChildRanges{zero_l, zero_r, one_l, one_r};
+    }
+
+    /*
+     * apply_bitwise_bit(value_bit, mask_bit, op)
+     * ------------------------------------------
+     * 1 ビットについて bitwise 演算を適用した結果を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    static bool apply_bitwise_bit(bool value_bit, bool mask_bit, BitwiseOperation op) {
+        switch (op) {
+            case BitwiseOperation::Xor:
+                return value_bit ^ mask_bit;
+            case BitwiseOperation::Or:
+                return value_bit | mask_bit;
+            case BitwiseOperation::And:
+                return value_bit & mask_bit;
+        }
+        throw std::logic_error("apply_bitwise_bit: unknown operation");
+    }
+
+    /*
+     * count_less_bitwise_dfs(depth, l, r, mask, upper, op)
+     * ----------------------------------------------------
+     * 深さ depth のノード区間 [l, r) について、
+     * bitwise 演算後の値が upper 未満である要素数を数える内部 DFS。
+     *
+     * 時間計算量:
+     *   XOR のとき O(W)
+     *   OR / AND のとき O(M)
+     *   W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_bitwise_dfs(
+        int depth,
+        int l,
+        int r,
+        unsigned_value_type mask,
+        unsigned long long upper,
+        BitwiseOperation op
+    ) const {
+        if (l >= r || depth >= raw_bit_size_) return 0;
+
+        const int shift = raw_bit_size_ - 1 - depth;
+        const bool mask_bit = ((mask >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+        const bool upper_bit = ((upper >> shift) & 1ULL) != 0;
+        const auto child = raw_child_ranges(depth, l, r);
+
+        int cnt = 0;
+        if (child.zero_l < child.zero_r) {
+            const bool transformed = apply_bitwise_bit(false, mask_bit, op);
+            if (transformed < upper_bit) {
+                cnt += child.zero_r - child.zero_l;
+            } else if (transformed == upper_bit) {
+                cnt += count_less_bitwise_dfs(depth + 1, child.zero_l, child.zero_r, mask, upper, op);
+            }
+        }
+        if (child.one_l < child.one_r) {
+            const bool transformed = apply_bitwise_bit(true, mask_bit, op);
+            if (transformed < upper_bit) {
+                cnt += child.one_r - child.one_l;
+            } else if (transformed == upper_bit) {
+                cnt += count_less_bitwise_dfs(depth + 1, child.one_l, child.one_r, mask, upper, op);
+            }
+        }
+        return cnt;
+    }
+
+    /*
+     * count_less_xor_impl(l, r, mask, upper)
+     * --------------------------------------
+     * 区間 [l, r) において (value xor mask) < upper の個数を返す内部関数。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    int count_less_xor_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        return count_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::Xor);
+    }
+
+    /*
+     * count_less_or_impl(l, r, mask, upper)
+     * -------------------------------------
+     * 区間 [l, r) において (value | mask) < upper の個数を返す内部関数。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_or_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        return count_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::Or);
+    }
+
+    /*
+     * count_less_and_impl(l, r, mask, upper)
+     * --------------------------------------
+     * 区間 [l, r) において (value & mask) < upper の個数を返す内部関数。
+     *
+     * 時間計算量:
+     *   O(M)
+     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_less_and_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        return count_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::And);
     }
 
     /*
@@ -1679,4 +2068,3 @@ private:
  * 使い方:
  *   WaveletMatrix<int> wm(a);
  */
-
