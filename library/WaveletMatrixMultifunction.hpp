@@ -872,7 +872,6 @@ public:
      * 注意:
      *   - T が整数型のときのみ使用できる
      *   - 値は unsigned 表現として扱われる
-     *   - 問題のような「value xor mask < upper」の個数取得に使える
      *
      * 時間計算量:
      *   XOR のとき O(W)
