@@ -872,6 +872,7 @@ public:
      * 注意:
      *   - T が整数型のときのみ使用できる
      *   - 値は unsigned 表現として扱われる
+     *   - 問題のような「value xor mask < upper」の個数取得に使える
      *
      * 時間計算量:
      *   XOR のとき O(W)
@@ -1985,6 +1986,1816 @@ public:
 
 
     /*
+     * access_bitwise(i, mask, op)
+     * ---------------------------
+     * i 番目の要素 value に bitwise 演算を施した結果
+     * op(value, mask) を返す。
+     *
+     * 注意:
+     *   - T が整数型のときのみ使用できる
+     *   - 戻り値は unsigned long long で返す
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    unsigned long long access_bitwise(int i, unsigned long long mask, BitwiseOperation op) const {
+        check_index(i);
+        ensure_bitwise_supported();
+        return apply_bitwise_value(
+            static_cast<unsigned_value_type>(original_[i]),
+            static_cast<unsigned_value_type>(mask),
+            op
+        );
+    }
+
+    /*
+     * rank_bitwise(value, r, mask, op)
+     * --------------------------------
+     * prefix 区間 [0, r) において、
+     * op(element, mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   count_equal_bitwise に準ずる
+     */
+    int rank_bitwise(unsigned long long value, int r, unsigned long long mask, BitwiseOperation op) const {
+        ensure_bitwise_supported();
+        if (r < 0) r = 0;
+        if (r > n_) r = n_;
+        return count_equal_bitwise(0, r, mask, value, op);
+    }
+
+    /*
+     * rank_bitwise(value, l, r, mask, op)
+     * -----------------------------------
+     * 区間 [l, r) において、
+     * op(element, mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   count_equal_bitwise に準ずる
+     */
+    int rank_bitwise(unsigned long long value, int l, int r, unsigned long long mask, BitwiseOperation op) const {
+        if (l > r) std::swap(l, r);
+        l = std::max(l, 0);
+        r = std::min(r, n_);
+        return rank_bitwise(value, r, mask, op) - rank_bitwise(value, l, mask, op);
+    }
+
+    /*
+     * count_bitwise(value, mask, op)
+     * ------------------------------
+     * 配列全体において、
+     * op(element, mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   count_equal_bitwise に準ずる
+     */
+    int count_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const {
+        ensure_bitwise_supported();
+        return count_equal_bitwise(0, n_, mask, value, op);
+    }
+
+    /*
+     * count_bitwise(value, l, r, mask, op)
+     * ------------------------------------
+     * 区間 [l, r) において、
+     * op(element, mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   count_equal_bitwise に準ずる
+     */
+    int count_bitwise(unsigned long long value, int l, int r, unsigned long long mask, BitwiseOperation op) const {
+        ensure_bitwise_supported();
+        return count_equal_bitwise(l, r, mask, value, op);
+    }
+
+    /*
+     * contains_bitwise(value, mask, op)
+     * ---------------------------------
+     * 配列全体において、
+     * op(element, mask) == value を満たす要素が存在するかを返す。
+     *
+     * 時間計算量:
+     *   count_bitwise に準ずる
+     */
+    bool contains_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const {
+        return count_bitwise(value, mask, op) > 0;
+    }
+
+    /*
+     * values_bitwise(mask, op)
+     * ------------------------
+     * 配列全体において現れる
+     * op(element, mask) の異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   list_frequencies_bitwise(0, n_, mask, op) に準ずる
+     */
+    std::vector<unsigned long long> values_bitwise(unsigned long long mask, BitwiseOperation op) const {
+        return distinct_values_bitwise(0, n_, mask, op);
+    }
+
+    /*
+     * distinct_size_bitwise(mask, op)
+     * -------------------------------
+     * 配列全体において現れる
+     * op(element, mask) の異なる値の個数を返す。
+     *
+     * 時間計算量:
+     *   values_bitwise(mask, op) に準ずる
+     */
+    int distinct_size_bitwise(unsigned long long mask, BitwiseOperation op) const {
+        return static_cast<int>(values_bitwise(mask, op).size());
+    }
+
+    /*
+     * index_of_bitwise(value, mask, op)
+     * ---------------------------------
+     * values_bitwise(mask, op) が返す昇順 distinct 配列の中で、
+     * value が現れる位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   values_bitwise(mask, op) に準ずる
+     */
+    int index_of_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const {
+        const auto vals = values_bitwise(mask, op);
+        const auto it = std::lower_bound(vals.begin(), vals.end(), value);
+        if (it == vals.end() || *it != value) return -1;
+        return static_cast<int>(it - vals.begin());
+    }
+
+    /*
+     * select_bitwise(value, kth, mask, op)
+     * ------------------------------------
+     * 0-indexed で kth 番目に現れる
+     * op(element, mask) == value を満たす位置を返す。
+     * 存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   O(log N * C)
+     *   C は rank_bitwise(value, r, mask, op) 1 回分
+     */
+    int select_bitwise(unsigned long long value, int kth, unsigned long long mask, BitwiseOperation op) const {
+        ensure_bitwise_supported();
+        if (kth < 0) return -1;
+        const int total = count_bitwise(value, mask, op);
+        if (kth >= total) return -1;
+
+        int lo = 0, hi = n_;
+        while (lo < hi) {
+            const int mid = lo + (hi - lo) / 2;
+            if (rank_bitwise(value, mid + 1, mask, op) >= kth + 1) hi = mid;
+            else lo = mid + 1;
+        }
+        return lo;
+    }
+
+    /*
+     * kth_smallest_bitwise(l, r, k, mask, op)
+     * ---------------------------------------
+     * 区間 [l, r) の op(element, mask) たちを昇順に見たときの
+     * k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(W * C)
+     *   W は unsigned(T) のビット幅、
+     *   C は count_less_equal_bitwise 1 回分
+     */
+    unsigned long long kth_smallest_bitwise(
+        int l, int r, int k,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (k < 0 || k >= r - l) {
+            throw std::out_of_range("kth_smallest_bitwise: k is out of range");
+        }
+
+        const unsigned_value_type normalized_mask = static_cast<unsigned_value_type>(mask);
+        if (op == BitwiseOperation::Xor) {
+            return kth_smallest_xor_impl(l, r, k, normalized_mask);
+        }
+
+        unsigned long long lo = 0;
+        unsigned long long hi = bitwise_max_value();
+        while (lo < hi) {
+            const unsigned long long mid = lo + ((hi - lo) >> 1);
+            if (count_less_equal_bitwise(l, r, mask, mid, op) >= k + 1) hi = mid;
+            else lo = mid + 1;
+        }
+        return lo;
+    }
+
+    /*
+     * kth_largest_bitwise(l, r, k, mask, op)
+     * --------------------------------------
+     * 区間 [l, r) の op(element, mask) たちを降順に見たときの
+     * k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   kth_smallest_bitwise に準ずる
+     */
+    unsigned long long kth_largest_bitwise(
+        int l, int r, int k,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (k < 0 || k >= r - l) {
+            throw std::out_of_range("kth_largest_bitwise: k is out of range");
+        }
+        return kth_smallest_bitwise(l, r, (r - l - 1) - k, mask, op);
+    }
+
+    /*
+     * quantile_bitwise(l, r, k, mask, op)
+     * -----------------------------------
+     * kth_smallest_bitwise の別名。
+     *
+     * 時間計算量:
+     *   kth_smallest_bitwise に準ずる
+     */
+    unsigned long long quantile_bitwise(
+        int l, int r, int k,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        return kth_smallest_bitwise(l, r, k, mask, op);
+    }
+
+    /*
+     * min_value_bitwise(l, r, mask, op)
+     * ---------------------------------
+     * 区間 [l, r) の op(element, mask) の最小値を返す。
+     * 空区間なら std::nullopt を返す。
+     *
+     * 時間計算量:
+     *   kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> min_value_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r) return std::nullopt;
+        return kth_smallest_bitwise(l, r, 0, mask, op);
+    }
+
+    /*
+     * max_value_bitwise(l, r, mask, op)
+     * ---------------------------------
+     * 区間 [l, r) の op(element, mask) の最大値を返す。
+     * 空区間なら std::nullopt を返す。
+     *
+     * 時間計算量:
+     *   kth_largest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> max_value_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r) return std::nullopt;
+        return kth_largest_bitwise(l, r, 0, mask, op);
+    }
+
+    /*
+     * median_lower_bitwise(l, r, mask, op)
+     * ------------------------------------
+     * 区間 [l, r) の op(element, mask) の下側中央値を返す。
+     * 空区間なら std::nullopt を返す。
+     *
+     * 時間計算量:
+     *   kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> median_lower_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        const int len = r - l;
+        if (len == 0) return std::nullopt;
+        return kth_smallest_bitwise(l, r, (len - 1) / 2, mask, op);
+    }
+
+    /*
+     * median_upper_bitwise(l, r, mask, op)
+     * ------------------------------------
+     * 区間 [l, r) の op(element, mask) の上側中央値を返す。
+     * 空区間なら std::nullopt を返す。
+     *
+     * 時間計算量:
+     *   kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> median_upper_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        const int len = r - l;
+        if (len == 0) return std::nullopt;
+        return kth_smallest_bitwise(l, r, len / 2, mask, op);
+    }
+
+    /*
+     * next_value_ge_bitwise(l, r, lower, mask, op)
+     * --------------------------------------------
+     * 区間 [l, r) の op(element, mask) の中で、
+     * lower 以上の最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   count_less_bitwise と kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> next_value_ge_bitwise(
+        int l, int r,
+        unsigned long long lower,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        const int cnt = count_less_bitwise(l, r, mask, lower, op);
+        if (cnt == r - l) return std::nullopt;
+        return kth_smallest_bitwise(l, r, cnt, mask, op);
+    }
+
+    /*
+     * next_value_gt_bitwise(l, r, lower, mask, op)
+     * --------------------------------------------
+     * 区間 [l, r) の op(element, mask) の中で、
+     * lower より大きい最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   count_less_equal_bitwise と kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> next_value_gt_bitwise(
+        int l, int r,
+        unsigned long long lower,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        const int cnt = count_less_equal_bitwise(l, r, mask, lower, op);
+        if (cnt == r - l) return std::nullopt;
+        return kth_smallest_bitwise(l, r, cnt, mask, op);
+    }
+
+    /*
+     * prev_value_lt_bitwise(l, r, upper, mask, op)
+     * --------------------------------------------
+     * 区間 [l, r) の op(element, mask) の中で、
+     * upper 未満の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   count_less_bitwise と kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> prev_value_lt_bitwise(
+        int l, int r,
+        unsigned long long upper,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        const int cnt = count_less_bitwise(l, r, mask, upper, op);
+        if (cnt == 0) return std::nullopt;
+        return kth_smallest_bitwise(l, r, cnt - 1, mask, op);
+    }
+
+    /*
+     * prev_value_le_bitwise(l, r, upper, mask, op)
+     * --------------------------------------------
+     * 区間 [l, r) の op(element, mask) の中で、
+     * upper 以下の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   count_less_equal_bitwise と kth_smallest_bitwise に準ずる
+     */
+    std::optional<unsigned long long> prev_value_le_bitwise(
+        int l, int r,
+        unsigned long long upper,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        const int cnt = count_less_equal_bitwise(l, r, mask, upper, op);
+        if (cnt == 0) return std::nullopt;
+        return kth_smallest_bitwise(l, r, cnt - 1, mask, op);
+    }
+
+    /*
+     * next_value_bitwise(l, r, lower, mask, op)
+     * -----------------------------------------
+     * next_value_ge_bitwise の別名。
+     *
+     * 時間計算量:
+     *   next_value_ge_bitwise に準ずる
+     */
+    std::optional<unsigned long long> next_value_bitwise(
+        int l, int r,
+        unsigned long long lower,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        return next_value_ge_bitwise(l, r, lower, mask, op);
+    }
+
+    /*
+     * prev_value_bitwise(l, r, upper, mask, op)
+     * -----------------------------------------
+     * prev_value_lt_bitwise の別名。
+     *
+     * 時間計算量:
+     *   prev_value_lt_bitwise に準ずる
+     */
+    std::optional<unsigned long long> prev_value_bitwise(
+        int l, int r,
+        unsigned long long upper,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        return prev_value_lt_bitwise(l, r, upper, mask, op);
+    }
+
+    /*
+     * list_frequencies_bitwise(l, r, mask, op)
+     * ----------------------------------------
+     * 区間 [l, r) の op(element, mask) に現れる異なる値を
+     * (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ + m log m)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r) return {};
+        return aggregate_bitwise_frequencies(
+            list_frequencies(l, r),
+            static_cast<unsigned_value_type>(mask),
+            0,
+            0,
+            false,
+            op
+        );
+    }
+
+    /*
+     * list_frequencies_bitwise(l, r, lower, upper, mask, op)
+     * ------------------------------------------------------
+     * 区間 [l, r) の op(element, mask) について、
+     * 値域 [lower, upper) に属する異なる値を
+     * (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ + m log m)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_bitwise(
+        int l, int r,
+        unsigned long long lower,
+        unsigned long long upper,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r || lower >= upper) return {};
+        return aggregate_bitwise_frequencies(
+            list_frequencies(l, r),
+            static_cast<unsigned_value_type>(mask),
+            lower,
+            upper,
+            true,
+            op
+        );
+    }
+
+    /*
+     * distinct_values_bitwise(l, r, mask, op)
+     * ---------------------------------------
+     * 区間 [l, r) の op(element, mask) に現れる異なる値を
+     * 昇順で返す。
+     *
+     * 時間計算量:
+     *   list_frequencies_bitwise(l, r, mask, op) に準ずる
+     */
+    std::vector<unsigned long long> distinct_values_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        const auto freq = list_frequencies_bitwise(l, r, mask, op);
+        std::vector<unsigned long long> res;
+        res.reserve(freq.size());
+        for (const auto& [v, c] : freq) {
+            (void)c;
+            res.push_back(v);
+        }
+        return res;
+    }
+
+    /*
+     * top_k_frequent_bitwise(l, r, k, mask, op)
+     * -----------------------------------------
+     * 区間 [l, r) の op(element, mask) に対し、
+     * 頻度上位 k 個の (値, 出現回数) を返す。
+     *
+     * 並び順:
+     *   1. 出現回数の降順
+     *   2. 値の昇順
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ + m log m)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::vector<std::pair<unsigned long long, int>> top_k_frequent_bitwise(
+        int l, int r,
+        int k,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (k <= 0 || l == r) return {};
+
+        auto freq = list_frequencies_bitwise(l, r, mask, op);
+        std::sort(freq.begin(), freq.end(), [](const auto& a, const auto& b) {
+            if (a.second != b.second) return a.second > b.second;
+            return a.first < b.first;
+        });
+        if (static_cast<int>(freq.size()) > k) {
+            freq.resize(k);
+        }
+        return freq;
+    }
+
+    /*
+     * mode_bitwise(l, r, mask, op)
+     * ----------------------------
+     * 区間 [l, r) の op(element, mask) の最頻値を
+     * (値, 出現回数) で返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   top_k_frequent_bitwise に準ずる
+     */
+    std::optional<std::pair<unsigned long long, int>> mode_bitwise(
+        int l, int r,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        if (l == r) return std::nullopt;
+        auto res = top_k_frequent_bitwise(l, r, 1, mask, op);
+        if (res.empty()) return std::nullopt;
+        return res[0];
+    }
+
+    /*
+     * intersect_bitwise(l1, r1, l2, r2, mask, op)
+     * -------------------------------------------
+     * 2 区間 [l1, r1), [l2, r2) について、
+     * 共通して現れる op(element, mask) の値を列挙する。
+     *
+     * 戻り値:
+     *   (値, 1つ目区間での個数, 2つ目区間での個数)
+     *
+     * 時間計算量:
+     *   O((m1 + m2 + 1) log σ + m1 log m1 + m2 log m2)
+     *   m1, m2 は各区間に現れる異なる元値の個数
+     */
+    std::vector<std::tuple<unsigned long long, int, int>> intersect_bitwise(
+        int l1, int r1,
+        int l2, int r2,
+        unsigned long long mask,
+        BitwiseOperation op
+    ) const {
+        validate_range(l1, r1);
+        validate_range(l2, r2);
+        ensure_bitwise_supported();
+
+        const auto xs = list_frequencies_bitwise(l1, r1, mask, op);
+        const auto ys = list_frequencies_bitwise(l2, r2, mask, op);
+
+        std::vector<std::tuple<unsigned long long, int, int>> res;
+        int i = 0, j = 0;
+        while (i < static_cast<int>(xs.size()) && j < static_cast<int>(ys.size())) {
+            if (xs[i].first == ys[j].first) {
+                res.emplace_back(xs[i].first, xs[i].second, ys[j].second);
+                ++i;
+                ++j;
+            } else if (xs[i].first < ys[j].first) {
+                ++i;
+            } else {
+                ++j;
+            }
+        }
+        return res;
+    }
+
+    /*
+     * access_xor
+     * ----------
+     * i 番目の要素に (value xor mask) を施した結果を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    unsigned long long access_xor(int i, unsigned long long mask) const {
+        return access_bitwise(i, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * rank_xor
+     * --------
+     * prefix 区間 [0, r) において、(element xor mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log σ)
+     */
+    int rank_xor(unsigned long long value, int r, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (!bitwise_value_fits(value)) return 0;
+        if (r < 0) r = 0;
+        if (r > n_) r = n_;
+        const unsigned_value_type raw = static_cast<unsigned_value_type>(value) ^ static_cast<unsigned_value_type>(mask);
+        return rank(static_cast<T>(raw), r);
+    }
+
+
+    /*
+     * rank_xor
+     * --------
+     * 区間 [l, r) において、(element xor mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log σ)
+     */
+    int rank_xor(unsigned long long value, int l, int r, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (l > r) std::swap(l, r);
+        l = std::max(l, 0);
+        r = std::min(r, n_);
+        if (!bitwise_value_fits(value)) return 0;
+        const unsigned_value_type raw = static_cast<unsigned_value_type>(value) ^ static_cast<unsigned_value_type>(mask);
+        return rank(static_cast<T>(raw), l, r);
+    }
+
+
+    /*
+     * count_xor
+     * ---------
+     * 配列全体において、(element xor mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log σ)
+     */
+    int count_xor(unsigned long long value, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (!bitwise_value_fits(value)) return 0;
+        const unsigned_value_type raw = static_cast<unsigned_value_type>(value) ^ static_cast<unsigned_value_type>(mask);
+        return count(static_cast<T>(raw));
+    }
+
+
+    /*
+     * count_xor
+     * ---------
+     * 区間 [l, r) において、(element xor mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(log σ)
+     */
+    int count_xor(unsigned long long value, int l, int r, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (!bitwise_value_fits(value)) return 0;
+        const unsigned_value_type raw = static_cast<unsigned_value_type>(value) ^ static_cast<unsigned_value_type>(mask);
+        return count(static_cast<T>(raw), l, r);
+    }
+
+
+    /*
+     * contains_xor
+     * ------------
+     * 配列全体において、(element xor mask) == value を満たす要素が存在するかを返す。
+     *
+     * 時間計算量:
+     *   O(log σ)
+     */
+    bool contains_xor(unsigned long long value, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (!bitwise_value_fits(value)) return false;
+        const unsigned_value_type raw = static_cast<unsigned_value_type>(value) ^ static_cast<unsigned_value_type>(mask);
+        return contains(static_cast<T>(raw));
+    }
+
+
+    /*
+     * values_xor
+     * ----------
+     * 配列全体において現れる (element xor mask) の異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   おおよそ O((σ + 1)W)
+     *   W は unsigned(T) のビット幅
+     */
+    std::vector<unsigned long long> values_xor(unsigned long long mask) const {
+        return distinct_values_xor(0, n_, mask);
+    }
+
+
+    /*
+     * distinct_size_xor
+     * -----------------
+     * 配列全体において現れる (element xor mask) の異なる値の個数を返す。
+     * XOR は全単射なので元の distinct 数と一致する。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    int distinct_size_xor(unsigned long long mask) const {
+        (void)mask;
+        ensure_bitwise_supported();
+        return sigma_;
+    }
+
+
+    /*
+     * index_of_xor
+     * ------------
+     * values_xor(mask) が返す昇順 distinct 配列の中で、value が現れる位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   おおよそ O((σ + 1)W)
+     *   W は unsigned(T) のビット幅
+     */
+    int index_of_xor(unsigned long long value, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (!bitwise_value_fits(value)) return -1;
+        if (!contains_xor(value, mask)) return -1;
+        return count_distinct_less_xor_impl(0, n_, static_cast<unsigned_value_type>(mask), value);
+    }
+
+
+    /*
+     * select_xor
+     * ----------
+     * 0-indexed で kth 番目に現れる (element xor mask) == value を満たす位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   O(log σ log N)
+     */
+    int select_xor(unsigned long long value, int kth, unsigned long long mask) const {
+        ensure_bitwise_supported();
+        if (!bitwise_value_fits(value)) return -1;
+        const unsigned_value_type raw = static_cast<unsigned_value_type>(value) ^ static_cast<unsigned_value_type>(mask);
+        return select(static_cast<T>(raw), kth);
+    }
+
+
+    /*
+     * kth_smallest_xor
+     * ----------------
+     * 区間 [l, r) の (element xor mask) を昇順に見たときの k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    unsigned long long kth_smallest_xor(int l, int r, int k, unsigned long long mask) const {
+        return kth_smallest_bitwise(l, r, k, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * kth_largest_xor
+     * ---------------
+     * 区間 [l, r) の (element xor mask) を降順に見たときの k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    unsigned long long kth_largest_xor(int l, int r, int k, unsigned long long mask) const {
+        return kth_largest_bitwise(l, r, k, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * quantile_xor
+     * ------------
+     * kth_smallest_xor の別名。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    unsigned long long quantile_xor(int l, int r, int k, unsigned long long mask) const {
+        return quantile_bitwise(l, r, k, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * min_value_xor
+     * -------------
+     * 区間 [l, r) の (element xor mask) の最小値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> min_value_xor(int l, int r, unsigned long long mask) const {
+        return min_value_bitwise(l, r, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * max_value_xor
+     * -------------
+     * 区間 [l, r) の (element xor mask) の最大値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> max_value_xor(int l, int r, unsigned long long mask) const {
+        return max_value_bitwise(l, r, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * median_lower_xor
+     * ----------------
+     * 区間 [l, r) の (element xor mask) の下側中央値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> median_lower_xor(int l, int r, unsigned long long mask) const {
+        return median_lower_bitwise(l, r, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * median_upper_xor
+     * ----------------
+     * 区間 [l, r) の (element xor mask) の上側中央値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> median_upper_xor(int l, int r, unsigned long long mask) const {
+        return median_upper_bitwise(l, r, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * next_value_ge_xor
+     * -----------------
+     * 区間 [l, r) の (element xor mask) の中で、lower 以上の最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> next_value_ge_xor(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_ge_bitwise(l, r, lower, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * next_value_gt_xor
+     * -----------------
+     * 区間 [l, r) の (element xor mask) の中で、lower より大きい最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> next_value_gt_xor(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_gt_bitwise(l, r, lower, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * prev_value_lt_xor
+     * -----------------
+     * 区間 [l, r) の (element xor mask) の中で、upper 未満の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> prev_value_lt_xor(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_lt_bitwise(l, r, upper, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * prev_value_le_xor
+     * -----------------
+     * 区間 [l, r) の (element xor mask) の中で、upper 以下の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> prev_value_le_xor(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_le_bitwise(l, r, upper, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * next_value_xor
+     * --------------
+     * next_value_ge_xor の別名。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> next_value_xor(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_bitwise(l, r, lower, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * prev_value_xor
+     * --------------
+     * prev_value_lt_xor の別名。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    std::optional<unsigned long long> prev_value_xor(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_bitwise(l, r, upper, mask, BitwiseOperation::Xor);
+    }
+
+
+    /*
+     * list_frequencies_xor
+     * --------------------
+     * 区間 [l, r) の (element xor mask) に現れる異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は出力される異なる値の個数、W は unsigned(T) のビット幅
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_xor(int l, int r, unsigned long long mask) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return list_frequencies_xor_impl(l, r, static_cast<unsigned_value_type>(mask));
+    }
+
+
+    /*
+     * list_frequencies_xor
+     * --------------------
+     * 区間 [l, r) の (element xor mask) について、値域 [lower, upper) に属する異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は出力される異なる値の個数、W は unsigned(T) のビット幅
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_xor(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return list_frequencies_xor_impl(l, r, lower, upper, static_cast<unsigned_value_type>(mask));
+    }
+
+
+    /*
+     * distinct_values_xor
+     * -------------------
+     * 区間 [l, r) の (element xor mask) に現れる異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   list_frequencies_xor(l, r, mask) に準ずる
+     */
+    std::vector<unsigned long long> distinct_values_xor(int l, int r, unsigned long long mask) const {
+        const auto freq = list_frequencies_xor(l, r, mask);
+        std::vector<unsigned long long> res;
+        res.reserve(freq.size());
+        for (const auto& [v, c] : freq) {
+            (void)c;
+            res.push_back(v);
+        }
+        return res;
+    }
+
+
+    /*
+     * top_k_frequent_xor
+     * ------------------
+     * 区間 [l, r) の (element xor mask) に対し、頻度上位 k 個の (値, 出現回数) を返す。
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ + m log k + k log k)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::vector<std::pair<unsigned long long, int>> top_k_frequent_xor(int l, int r, int k, unsigned long long mask) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return top_k_frequent_xor_impl(l, r, k, static_cast<unsigned_value_type>(mask));
+    }
+
+
+    /*
+     * mode_xor
+     * --------
+     * 区間 [l, r) の (element xor mask) の最頻値を (値, 出現回数) で返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::optional<std::pair<unsigned long long, int>> mode_xor(int l, int r, unsigned long long mask) const {
+        validate_range(l, r);
+        ensure_bitwise_supported();
+        return mode_xor_impl(l, r, static_cast<unsigned_value_type>(mask));
+    }
+
+
+    /*
+     * intersect_xor
+     * -------------
+     * 2 区間 [l1, r1), [l2, r2) について、共通して現れる (element xor mask) の値を列挙する。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は共通して現れる異なる値の個数、W は unsigned(T) のビット幅
+     */
+    std::vector<std::tuple<unsigned long long, int, int>> intersect_xor(int l1, int r1, int l2, int r2, unsigned long long mask) const {
+        validate_range(l1, r1);
+        validate_range(l2, r2);
+        ensure_bitwise_supported();
+        return intersect_xor_impl(l1, r1, l2, r2, static_cast<unsigned_value_type>(mask));
+    }
+
+
+    /*
+     * access_or
+     * ---------
+     * i 番目の要素に (value | mask) を施した結果を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long access_or(int i, unsigned long long mask) const {
+        return access_bitwise(i, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * rank_or
+     * -------
+     * prefix 区間 [0, r) において、(value | mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int rank_or(unsigned long long value, int r, unsigned long long mask) const {
+        return rank_bitwise(value, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * rank_or
+     * -------
+     * 区間 [l, r) において、(value | mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int rank_or(unsigned long long value, int l, int r, unsigned long long mask) const {
+        return rank_bitwise(value, l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * count_or
+     * --------
+     * 配列全体において、(value | mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_or(unsigned long long value, unsigned long long mask) const {
+        return count_bitwise(value, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * count_or
+     * --------
+     * 区間 [l, r) において、(value | mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_or(unsigned long long value, int l, int r, unsigned long long mask) const {
+        return count_bitwise(value, l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * contains_or
+     * -----------
+     * 配列全体において、(value | mask) == value を満たす要素が存在するかを返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    bool contains_or(unsigned long long value, unsigned long long mask) const {
+        return contains_bitwise(value, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * values_or
+     * ---------
+     * 配列全体において現れる (value | mask) の異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<unsigned long long> values_or(unsigned long long mask) const {
+        return values_bitwise(mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * distinct_size_or
+     * ----------------
+     * 配列全体において現れる (value | mask) の異なる値の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int distinct_size_or(unsigned long long mask) const {
+        return distinct_size_bitwise(mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * index_of_or
+     * -----------
+     * values_or(mask) が返す昇順 distinct 配列の中で、value が現れる位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int index_of_or(unsigned long long value, unsigned long long mask) const {
+        return index_of_bitwise(value, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * select_or
+     * ---------
+     * 0-indexed で kth 番目に現れる (value | mask) == value を満たす位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int select_or(unsigned long long value, int kth, unsigned long long mask) const {
+        return select_bitwise(value, kth, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * kth_smallest_or
+     * ---------------
+     * 区間 [l, r) の (value | mask) を昇順に見たときの k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long kth_smallest_or(int l, int r, int k, unsigned long long mask) const {
+        return kth_smallest_bitwise(l, r, k, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * kth_largest_or
+     * --------------
+     * 区間 [l, r) の (value | mask) を降順に見たときの k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long kth_largest_or(int l, int r, int k, unsigned long long mask) const {
+        return kth_largest_bitwise(l, r, k, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * quantile_or
+     * -----------
+     * kth_smallest_or の別名。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long quantile_or(int l, int r, int k, unsigned long long mask) const {
+        return quantile_bitwise(l, r, k, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * min_value_or
+     * ------------
+     * 区間 [l, r) の (value | mask) の最小値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> min_value_or(int l, int r, unsigned long long mask) const {
+        return min_value_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * max_value_or
+     * ------------
+     * 区間 [l, r) の (value | mask) の最大値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> max_value_or(int l, int r, unsigned long long mask) const {
+        return max_value_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * median_lower_or
+     * ---------------
+     * 区間 [l, r) の (value | mask) の下側中央値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> median_lower_or(int l, int r, unsigned long long mask) const {
+        return median_lower_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * median_upper_or
+     * ---------------
+     * 区間 [l, r) の (value | mask) の上側中央値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> median_upper_or(int l, int r, unsigned long long mask) const {
+        return median_upper_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * next_value_ge_or
+     * ----------------
+     * 区間 [l, r) の (value | mask) の中で、lower 以上の最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> next_value_ge_or(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_ge_bitwise(l, r, lower, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * next_value_gt_or
+     * ----------------
+     * 区間 [l, r) の (value | mask) の中で、lower より大きい最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> next_value_gt_or(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_gt_bitwise(l, r, lower, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * prev_value_lt_or
+     * ----------------
+     * 区間 [l, r) の (value | mask) の中で、upper 未満の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> prev_value_lt_or(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_lt_bitwise(l, r, upper, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * prev_value_le_or
+     * ----------------
+     * 区間 [l, r) の (value | mask) の中で、upper 以下の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> prev_value_le_or(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_le_bitwise(l, r, upper, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * next_value_or
+     * -------------
+     * next_value_ge_or の別名。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> next_value_or(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_bitwise(l, r, lower, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * prev_value_or
+     * -------------
+     * prev_value_lt_or の別名。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> prev_value_or(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_bitwise(l, r, upper, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * list_frequencies_or
+     * -------------------
+     * 区間 [l, r) の (value | mask) に現れる異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_or(int l, int r, unsigned long long mask) const {
+        return list_frequencies_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * list_frequencies_or
+     * -------------------
+     * 区間 [l, r) の (value | mask) について、値域 [lower, upper) に属する異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_or(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const {
+        return list_frequencies_bitwise(l, r, lower, upper, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * distinct_values_or
+     * ------------------
+     * 区間 [l, r) の (value | mask) に現れる異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<unsigned long long> distinct_values_or(int l, int r, unsigned long long mask) const {
+        return distinct_values_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * top_k_frequent_or
+     * -----------------
+     * 区間 [l, r) の (value | mask) に対し、頻度上位 k 個の (値, 出現回数) を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::pair<unsigned long long, int>> top_k_frequent_or(int l, int r, int k, unsigned long long mask) const {
+        return top_k_frequent_bitwise(l, r, k, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * mode_or
+     * -------
+     * 区間 [l, r) の (value | mask) の最頻値を (値, 出現回数) で返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<std::pair<unsigned long long, int>> mode_or(int l, int r, unsigned long long mask) const {
+        return mode_bitwise(l, r, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * intersect_or
+     * ------------
+     * 2 区間 [l1, r1), [l2, r2) について、共通して現れる (value | mask) の値を列挙する。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::tuple<unsigned long long, int, int>> intersect_or(int l1, int r1, int l2, int r2, unsigned long long mask) const {
+        return intersect_bitwise(l1, r1, l2, r2, mask, BitwiseOperation::Or);
+    }
+
+
+    /*
+     * access_and
+     * ----------
+     * i 番目の要素に (value & mask) を施した結果を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long access_and(int i, unsigned long long mask) const {
+        return access_bitwise(i, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * rank_and
+     * --------
+     * prefix 区間 [0, r) において、(value & mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int rank_and(unsigned long long value, int r, unsigned long long mask) const {
+        return rank_bitwise(value, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * rank_and
+     * --------
+     * 区間 [l, r) において、(value & mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int rank_and(unsigned long long value, int l, int r, unsigned long long mask) const {
+        return rank_bitwise(value, l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * count_and
+     * ---------
+     * 配列全体において、(value & mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_and(unsigned long long value, unsigned long long mask) const {
+        return count_bitwise(value, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * count_and
+     * ---------
+     * 区間 [l, r) において、(value & mask) == value を満たす個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int count_and(unsigned long long value, int l, int r, unsigned long long mask) const {
+        return count_bitwise(value, l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * contains_and
+     * ------------
+     * 配列全体において、(value & mask) == value を満たす要素が存在するかを返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    bool contains_and(unsigned long long value, unsigned long long mask) const {
+        return contains_bitwise(value, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * values_and
+     * ----------
+     * 配列全体において現れる (value & mask) の異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<unsigned long long> values_and(unsigned long long mask) const {
+        return values_bitwise(mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * distinct_size_and
+     * -----------------
+     * 配列全体において現れる (value & mask) の異なる値の個数を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int distinct_size_and(unsigned long long mask) const {
+        return distinct_size_bitwise(mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * index_of_and
+     * ------------
+     * values_and(mask) が返す昇順 distinct 配列の中で、value が現れる位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int index_of_and(unsigned long long value, unsigned long long mask) const {
+        return index_of_bitwise(value, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * select_and
+     * ----------
+     * 0-indexed で kth 番目に現れる (value & mask) == value を満たす位置を返す。存在しなければ -1 を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    int select_and(unsigned long long value, int kth, unsigned long long mask) const {
+        return select_bitwise(value, kth, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * kth_smallest_and
+     * ----------------
+     * 区間 [l, r) の (value & mask) を昇順に見たときの k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long kth_smallest_and(int l, int r, int k, unsigned long long mask) const {
+        return kth_smallest_bitwise(l, r, k, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * kth_largest_and
+     * ---------------
+     * 区間 [l, r) の (value & mask) を降順に見たときの k 番目の値を返す。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long kth_largest_and(int l, int r, int k, unsigned long long mask) const {
+        return kth_largest_bitwise(l, r, k, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * quantile_and
+     * ------------
+     * kth_smallest_and の別名。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    unsigned long long quantile_and(int l, int r, int k, unsigned long long mask) const {
+        return quantile_bitwise(l, r, k, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * min_value_and
+     * -------------
+     * 区間 [l, r) の (value & mask) の最小値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> min_value_and(int l, int r, unsigned long long mask) const {
+        return min_value_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * max_value_and
+     * -------------
+     * 区間 [l, r) の (value & mask) の最大値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> max_value_and(int l, int r, unsigned long long mask) const {
+        return max_value_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * median_lower_and
+     * ----------------
+     * 区間 [l, r) の (value & mask) の下側中央値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> median_lower_and(int l, int r, unsigned long long mask) const {
+        return median_lower_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * median_upper_and
+     * ----------------
+     * 区間 [l, r) の (value & mask) の上側中央値を返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> median_upper_and(int l, int r, unsigned long long mask) const {
+        return median_upper_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * next_value_ge_and
+     * -----------------
+     * 区間 [l, r) の (value & mask) の中で、lower 以上の最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> next_value_ge_and(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_ge_bitwise(l, r, lower, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * next_value_gt_and
+     * -----------------
+     * 区間 [l, r) の (value & mask) の中で、lower より大きい最小値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> next_value_gt_and(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_gt_bitwise(l, r, lower, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * prev_value_lt_and
+     * -----------------
+     * 区間 [l, r) の (value & mask) の中で、upper 未満の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> prev_value_lt_and(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_lt_bitwise(l, r, upper, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * prev_value_le_and
+     * -----------------
+     * 区間 [l, r) の (value & mask) の中で、upper 以下の最大値を返す。存在しなければ std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> prev_value_le_and(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_le_bitwise(l, r, upper, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * next_value_and
+     * --------------
+     * next_value_ge_and の別名。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> next_value_and(int l, int r, unsigned long long lower, unsigned long long mask) const {
+        return next_value_bitwise(l, r, lower, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * prev_value_and
+     * --------------
+     * prev_value_lt_and の別名。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<unsigned long long> prev_value_and(int l, int r, unsigned long long upper, unsigned long long mask) const {
+        return prev_value_bitwise(l, r, upper, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * list_frequencies_and
+     * --------------------
+     * 区間 [l, r) の (value & mask) に現れる異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_and(int l, int r, unsigned long long mask) const {
+        return list_frequencies_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * list_frequencies_and
+     * --------------------
+     * 区間 [l, r) の (value & mask) について、値域 [lower, upper) に属する異なる値を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_and(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const {
+        return list_frequencies_bitwise(l, r, lower, upper, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * distinct_values_and
+     * -------------------
+     * 区間 [l, r) の (value & mask) に現れる異なる値を昇順で返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<unsigned long long> distinct_values_and(int l, int r, unsigned long long mask) const {
+        return distinct_values_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * top_k_frequent_and
+     * ------------------
+     * 区間 [l, r) の (value & mask) に対し、頻度上位 k 個の (値, 出現回数) を返す。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::pair<unsigned long long, int>> top_k_frequent_and(int l, int r, int k, unsigned long long mask) const {
+        return top_k_frequent_bitwise(l, r, k, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * mode_and
+     * --------
+     * 区間 [l, r) の (value & mask) の最頻値を (値, 出現回数) で返す。空区間なら std::nullopt。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::optional<std::pair<unsigned long long, int>> mode_and(int l, int r, unsigned long long mask) const {
+        return mode_bitwise(l, r, mask, BitwiseOperation::And);
+    }
+
+
+    /*
+     * intersect_and
+     * -------------
+     * 2 区間 [l1, r1), [l2, r2) について、共通して現れる (value & mask) の値を列挙する。
+     *
+     * 時間計算量:
+     *   O(M)\n     *   M は訪問ノード数（最悪 O(2^W)）
+     */
+    std::vector<std::tuple<unsigned long long, int, int>> intersect_and(int l1, int r1, int l2, int r2, unsigned long long mask) const {
+        return intersect_bitwise(l1, r1, l2, r2, mask, BitwiseOperation::And);
+    }
+
+
+    /*
      * count_and_sum_less(l, r, upper)
      * -------------------------------
      * 区間 [l, r) において x < upper を満たす要素の
@@ -2445,7 +4256,7 @@ public:
      *   m は出力される異なる値の個数
      */
     std::vector<std::pair<T, int>> list_frequencies(int l, int r) const {
-        return list_frequencies(l, r, 0, sigma_);
+        return list_frequencies_id_range(l, r, 0, sigma_);
     }
 
     /*
@@ -2464,7 +4275,7 @@ public:
     std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const {
         validate_range(l, r);
         if (!(lower < upper)) return {};
-        return list_frequencies(l, r, lower_id(lower), lower_id(upper));
+        return list_frequencies_id_range(l, r, lower_id(lower), lower_id(upper));
     }
 
     /*
@@ -2962,6 +4773,40 @@ private:
     }
 
     /*
+     * kth_smallest_xor_impl(l, r, k, mask)
+     * ------------------------------------
+     * 区間 [l, r) の (value xor mask) を昇順に見たときの
+     * k 番目の値を返す内部関数。k は 0-indexed。
+     *
+     * 時間計算量:
+     *   O(W)
+     */
+    unsigned long long kth_smallest_xor_impl(int l, int r, int k, unsigned_value_type mask) const {
+        unsigned long long res = 0;
+        for (int depth = 0; depth < raw_bit_size_; ++depth) {
+            const int shift = raw_bit_size_ - 1 - depth;
+            const bool mask_bit = ((mask >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+            const auto child = raw_child_ranges(depth, l, r);
+            const int preferred_zero_l = mask_bit ? child.one_l : child.zero_l;
+            const int preferred_zero_r = mask_bit ? child.one_r : child.zero_r;
+            const int preferred_zero_cnt = preferred_zero_r - preferred_zero_l;
+            const int preferred_one_l = mask_bit ? child.zero_l : child.one_l;
+            const int preferred_one_r = mask_bit ? child.zero_r : child.one_r;
+
+            if (k < preferred_zero_cnt) {
+                l = preferred_zero_l;
+                r = preferred_zero_r;
+            } else {
+                k -= preferred_zero_cnt;
+                res |= (1ULL << shift);
+                l = preferred_one_l;
+                r = preferred_one_r;
+            }
+        }
+        return res;
+    }
+
+    /*
      * count_less_or_impl(l, r, mask, upper)
      * -------------------------------------
      * 区間 [l, r) において (value | mask) < upper の個数を返す内部関数。
@@ -3083,6 +4928,411 @@ private:
         return count_and_sum_less_bitwise_dfs(0, l, r, mask, upper, BitwiseOperation::And);
     }
 
+
+    /*
+     * bitwise_value_fits(value)
+     * ------------------------
+     * bitwise クエリで値 value が unsigned(T) の表現範囲内に収まるかを返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    bool bitwise_value_fits(unsigned long long value) const {
+        return raw_bit_size_ >= 64 || value <= bitwise_max_value();
+    }
+
+    /*
+     * xor_subtree_intersects(depth, transformed_prefix, lower, upper)
+     * --------------------------------------------------------------
+     * XOR 後の値空間で、深さ depth・接頭辞 transformed_prefix の部分木が
+     * 値域 [lower, upper) と交わるかを返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    bool xor_subtree_intersects(
+        int depth,
+        unsigned long long transformed_prefix,
+        unsigned long long lower,
+        unsigned long long upper
+    ) const {
+        if (lower >= upper) return false;
+        if (depth <= 0) return true;
+        if (depth >= raw_bit_size_) {
+            return lower <= transformed_prefix && transformed_prefix < upper;
+        }
+        const int remain = raw_bit_size_ - depth;
+        const unsigned long long node_l = transformed_prefix;
+        const unsigned long long node_r = node_l + (1ULL << remain);
+        return !(node_r <= lower || upper <= node_l);
+    }
+
+    /*
+     * list_frequencies_xor_dfs(...)
+     * -----------------------------
+     * 区間 [l, r) に含まれる値を XOR 後の昇順で DFS し、
+     * (値, 個数) を列挙する内部関数。
+     *
+     * 時間計算量:
+     *   全体でおおよそ O((z + 1)W)
+     *   z は出力される異なる値の個数、W は unsigned(T) のビット幅
+     */
+    void list_frequencies_xor_dfs(
+        int depth,
+        int l,
+        int r,
+        unsigned_value_type mask,
+        unsigned long long transformed_prefix,
+        bool use_filter,
+        unsigned long long lower,
+        unsigned long long upper,
+        std::vector<std::pair<unsigned long long, int>>& out
+    ) const {
+        if (l >= r) return;
+        if (use_filter && !xor_subtree_intersects(depth, transformed_prefix, lower, upper)) return;
+        if (depth == raw_bit_size_) {
+            if (!use_filter || (lower <= transformed_prefix && transformed_prefix < upper)) {
+                out.emplace_back(transformed_prefix, r - l);
+            }
+            return;
+        }
+
+        const auto child = raw_child_ranges(depth, l, r);
+        const int shift = raw_bit_size_ - 1 - depth;
+        const bool mask_bit = ((mask >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+        const unsigned long long bit = 1ULL << shift;
+
+        if (!mask_bit) {
+            list_frequencies_xor_dfs(depth + 1, child.zero_l, child.zero_r, mask, transformed_prefix, use_filter, lower, upper, out);
+            list_frequencies_xor_dfs(depth + 1, child.one_l, child.one_r, mask, transformed_prefix | bit, use_filter, lower, upper, out);
+        } else {
+            list_frequencies_xor_dfs(depth + 1, child.one_l, child.one_r, mask, transformed_prefix, use_filter, lower, upper, out);
+            list_frequencies_xor_dfs(depth + 1, child.zero_l, child.zero_r, mask, transformed_prefix | bit, use_filter, lower, upper, out);
+        }
+    }
+
+    /*
+     * list_frequencies_xor_impl(l, r, mask)
+     * -------------------------------------
+     * 区間 [l, r) に現れる (value xor mask) を (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は出力される異なる値の個数、W は unsigned(T) のビット幅
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_xor_impl(
+        int l,
+        int r,
+        unsigned_value_type mask
+    ) const {
+        std::vector<std::pair<unsigned long long, int>> out;
+        if (l == r) return out;
+        list_frequencies_xor_dfs(0, l, r, mask, 0, false, 0, 0, out);
+        return out;
+    }
+
+    /*
+     * list_frequencies_xor_impl(l, r, lower, upper, mask)
+     * ---------------------------------------------------
+     * 区間 [l, r) に現れる (value xor mask) のうち、
+     * 値域 [lower, upper) に属するものを (値, 個数) で昇順列挙する。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は出力される異なる値の個数、W は unsigned(T) のビット幅
+     */
+    std::vector<std::pair<unsigned long long, int>> list_frequencies_xor_impl(
+        int l,
+        int r,
+        unsigned long long lower,
+        unsigned long long upper,
+        unsigned_value_type mask
+    ) const {
+        std::vector<std::pair<unsigned long long, int>> out;
+        if (l == r || lower >= upper) return out;
+        list_frequencies_xor_dfs(0, l, r, mask, 0, true, lower, upper, out);
+        return out;
+    }
+
+    /*
+     * count_distinct_less_xor_dfs(...)
+     * --------------------------------
+     * 区間 [l, r) に含まれる異なる値のうち、(value xor mask) < upper を満たす
+     * ものの個数を数える内部 DFS。
+     *
+     * 時間計算量:
+     *   全体でおおよそ O((z + 1)W)
+     *   z は区間内の異なる値の個数、W は unsigned(T) のビット幅
+     */
+    int count_distinct_less_xor_dfs(
+        int depth,
+        int l,
+        int r,
+        unsigned_value_type mask,
+        unsigned long long transformed_prefix,
+        unsigned long long upper
+    ) const {
+        if (l >= r) return 0;
+        if (!xor_subtree_intersects(depth, transformed_prefix, 0, upper)) return 0;
+        if (depth == raw_bit_size_) {
+            return transformed_prefix < upper ? 1 : 0;
+        }
+
+        const auto child = raw_child_ranges(depth, l, r);
+        const int shift = raw_bit_size_ - 1 - depth;
+        const bool mask_bit = ((mask >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+        const unsigned long long bit = 1ULL << shift;
+
+        if (!mask_bit) {
+            return count_distinct_less_xor_dfs(depth + 1, child.zero_l, child.zero_r, mask, transformed_prefix, upper)
+                 + count_distinct_less_xor_dfs(depth + 1, child.one_l, child.one_r, mask, transformed_prefix | bit, upper);
+        }
+        return count_distinct_less_xor_dfs(depth + 1, child.one_l, child.one_r, mask, transformed_prefix, upper)
+             + count_distinct_less_xor_dfs(depth + 1, child.zero_l, child.zero_r, mask, transformed_prefix | bit, upper);
+    }
+
+    /*
+     * count_distinct_less_xor_impl(l, r, mask, upper)
+     * -----------------------------------------------
+     * 区間 [l, r) に含まれる異なる値のうち、(value xor mask) < upper を満たす
+     * ものの個数を返す。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は区間内の異なる値の個数、W は unsigned(T) のビット幅
+     */
+    int count_distinct_less_xor_impl(int l, int r, unsigned_value_type mask, unsigned long long upper) const {
+        if (l == r || upper == 0) return 0;
+        if (upper_covers_all_bitwise_values(upper)) {
+            return static_cast<int>(list_frequencies_xor_impl(l, r, mask).size());
+        }
+        return count_distinct_less_xor_dfs(0, l, r, mask, 0, upper);
+    }
+
+    /*
+     * intersect_xor_dfs(...)
+     * ----------------------
+     * 2 区間に共通して現れる値を XOR 後の昇順で列挙する内部 DFS。
+     *
+     * 時間計算量:
+     *   全体でおおよそ O((z + 1)W)
+     *   z は共通して現れる異なる値の個数、W は unsigned(T) のビット幅
+     */
+    void intersect_xor_dfs(
+        int depth,
+        int l1,
+        int r1,
+        int l2,
+        int r2,
+        unsigned_value_type mask,
+        unsigned long long transformed_prefix,
+        std::vector<std::tuple<unsigned long long, int, int>>& out
+    ) const {
+        if (l1 >= r1 || l2 >= r2) return;
+        if (depth == raw_bit_size_) {
+            out.emplace_back(transformed_prefix, r1 - l1, r2 - l2);
+            return;
+        }
+
+        const auto child1 = raw_child_ranges(depth, l1, r1);
+        const auto child2 = raw_child_ranges(depth, l2, r2);
+        const int shift = raw_bit_size_ - 1 - depth;
+        const bool mask_bit = ((mask >> shift) & static_cast<unsigned_value_type>(1)) != 0;
+        const unsigned long long bit = 1ULL << shift;
+
+        if (!mask_bit) {
+            intersect_xor_dfs(depth + 1, child1.zero_l, child1.zero_r, child2.zero_l, child2.zero_r, mask, transformed_prefix, out);
+            intersect_xor_dfs(depth + 1, child1.one_l, child1.one_r, child2.one_l, child2.one_r, mask, transformed_prefix | bit, out);
+        } else {
+            intersect_xor_dfs(depth + 1, child1.one_l, child1.one_r, child2.one_l, child2.one_r, mask, transformed_prefix, out);
+            intersect_xor_dfs(depth + 1, child1.zero_l, child1.zero_r, child2.zero_l, child2.zero_r, mask, transformed_prefix | bit, out);
+        }
+    }
+
+    /*
+     * intersect_xor_impl(l1, r1, l2, r2, mask)
+     * -----------------------------------------
+     * 2 区間 [l1, r1), [l2, r2) に共通して現れる (value xor mask) を列挙する。
+     *
+     * 時間計算量:
+     *   おおよそ O((z + 1)W)
+     *   z は共通して現れる異なる値の個数、W は unsigned(T) のビット幅
+     */
+    std::vector<std::tuple<unsigned long long, int, int>> intersect_xor_impl(
+        int l1,
+        int r1,
+        int l2,
+        int r2,
+        unsigned_value_type mask
+    ) const {
+        std::vector<std::tuple<unsigned long long, int, int>> out;
+        if (l1 == r1 || l2 == r2) return out;
+        intersect_xor_dfs(0, l1, r1, l2, r2, mask, 0, out);
+        return out;
+    }
+
+    /*
+     * top_k_frequent_xor_impl(l, r, k, mask)
+     * --------------------------------------
+     * 区間 [l, r) の (value xor mask) に対し、頻度上位 k 個の
+     * (値, 出現回数) を返す内部関数。
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ + m log k + k log k)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::vector<std::pair<unsigned long long, int>> top_k_frequent_xor_impl(
+        int l,
+        int r,
+        int k,
+        unsigned_value_type mask
+    ) const {
+        if (k <= 0 || l == r) return {};
+
+        struct Node {
+            int cnt;
+            unsigned long long value;
+        };
+        struct Worse {
+            bool operator()(const Node& a, const Node& b) const {
+                if (a.cnt != b.cnt) return a.cnt > b.cnt;
+                return a.value < b.value;
+            }
+        };
+
+        std::priority_queue<Node, std::vector<Node>, Worse> pq;
+        for (const auto& [v, c] : list_frequencies(l, r)) {
+            const unsigned long long transformed = static_cast<unsigned long long>(static_cast<unsigned_value_type>(v) ^ mask);
+            Node cur{c, transformed};
+            if (static_cast<int>(pq.size()) < k) {
+                pq.push(cur);
+            } else {
+                const Node worst = pq.top();
+                if (cur.cnt > worst.cnt || (cur.cnt == worst.cnt && cur.value < worst.value)) {
+                    pq.pop();
+                    pq.push(cur);
+                }
+            }
+        }
+
+        std::vector<std::pair<unsigned long long, int>> out;
+        out.reserve(pq.size());
+        while (!pq.empty()) {
+            out.emplace_back(pq.top().value, pq.top().cnt);
+            pq.pop();
+        }
+        std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+            if (a.second != b.second) return a.second > b.second;
+            return a.first < b.first;
+        });
+        return out;
+    }
+
+    /*
+     * mode_xor_impl(l, r, mask)
+     * -------------------------
+     * 区間 [l, r) の (value xor mask) の最頻値を返す内部関数。
+     *
+     * 時間計算量:
+     *   O((m + 1) log σ)
+     *   m は区間 [l, r) に現れる異なる元値の個数
+     */
+    std::optional<std::pair<unsigned long long, int>> mode_xor_impl(
+        int l,
+        int r,
+        unsigned_value_type mask
+    ) const {
+        if (l == r) return std::nullopt;
+        bool found = false;
+        std::pair<unsigned long long, int> best{0, 0};
+        for (const auto& [v, c] : list_frequencies(l, r)) {
+            const unsigned long long transformed = static_cast<unsigned long long>(static_cast<unsigned_value_type>(v) ^ mask);
+            if (!found || c > best.second || (c == best.second && transformed < best.first)) {
+                found = true;
+                best = {transformed, c};
+            }
+        }
+        if (!found) return std::nullopt;
+        return best;
+    }
+
+    /*
+     * bitwise_max_value()
+     * -------------------
+     * bitwise クエリで取り得る最大値を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    unsigned long long bitwise_max_value() const {
+        if (raw_bit_size_ <= 0) return 0;
+        if (raw_bit_size_ >= 64) return std::numeric_limits<unsigned long long>::max();
+        return (1ULL << raw_bit_size_) - 1;
+    }
+
+    /*
+     * apply_bitwise_value(value, mask, op)
+     * ------------------------------------
+     * 値全体に bitwise 演算を適用した結果を返す。
+     *
+     * 時間計算量:
+     *   O(1)
+     */
+    unsigned long long apply_bitwise_value(
+        unsigned_value_type value,
+        unsigned_value_type mask,
+        BitwiseOperation op
+    ) const {
+        switch (op) {
+            case BitwiseOperation::Xor:
+                return static_cast<unsigned long long>(value ^ mask);
+            case BitwiseOperation::Or:
+                return static_cast<unsigned long long>(value | mask);
+            case BitwiseOperation::And:
+                return static_cast<unsigned long long>(value & mask);
+        }
+        throw std::logic_error("apply_bitwise_value: unknown operation");
+    }
+
+    /*
+     * aggregate_bitwise_frequencies(raw_freq, mask, lower, upper, use_filter, op)
+     * ---------------------------------------------------------------------------
+     * 元の値に対する (値, 個数) を、bitwise 演算後の値に写して集約する。
+     *
+     * 時間計算量:
+     *   O(m log m)
+     *   m は raw_freq の要素数
+     */
+    std::vector<std::pair<unsigned long long, int>> aggregate_bitwise_frequencies(
+        const std::vector<std::pair<T, int>>& raw_freq,
+        unsigned_value_type mask,
+        unsigned long long lower,
+        unsigned long long upper,
+        bool use_filter,
+        BitwiseOperation op
+    ) const {
+        std::vector<std::pair<unsigned long long, int>> tmp;
+        tmp.reserve(raw_freq.size());
+        for (const auto& [v, c] : raw_freq) {
+            const unsigned long long transformed =
+                apply_bitwise_value(static_cast<unsigned_value_type>(v), mask, op);
+            if (use_filter && (transformed < lower || transformed >= upper)) continue;
+            tmp.emplace_back(transformed, c);
+        }
+
+        std::sort(tmp.begin(), tmp.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+        });
+
+        std::vector<std::pair<unsigned long long, int>> out;
+        for (const auto& [v, c] : tmp) {
+            if (!out.empty() && out.back().first == v) out.back().second += c;
+            else out.emplace_back(v, c);
+        }
+        return out;
+    }
+
+
     /*
      * ensure_sum_supported()
      * ----------------------
@@ -3192,7 +5442,7 @@ private:
      * 時間計算量:
      *   おおよそ O((m + 1) log σ)
      */
-    std::vector<std::pair<T, int>> list_frequencies(int l, int r, int left_id, int right_id) const {
+    std::vector<std::pair<T, int>> list_frequencies_id_range(int l, int r, int left_id, int right_id) const {
         validate_range(l, r);
         left_id = std::clamp(left_id, 0, sigma_);
         right_id = std::clamp(right_id, 0, sigma_);
