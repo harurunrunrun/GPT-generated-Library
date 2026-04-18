@@ -95,12 +95,12 @@
 
 | 関数   | 時間計算量 | 説明 |
 |---|---|---|
-| `int range_freq(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において upper 未満の値の個数を返す。 つまり x < upper を数える。 |
-| `int range_freq(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) において lower <= x < upper を満たす個数を返す。 |
-| `int count_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x < upper の個数。 |
-| `int count_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x <= upper の個数。 |
-| `int count_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x > lower の個数。 |
-| `int count_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x >= lower の個数。 |
+| `int range_freq(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素数を返す。 |
+| `int range_freq(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、lower <= x < upper である要素数を返す。 |
+| `int count_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素数を返す。 |
+| `int count_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素数を返す。 |
+| `int count_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素数を返す。 |
+| `int count_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素数を返す。 |
 
 ### 前後探索
 
@@ -117,11 +117,11 @@
 
 | 関数   | 時間計算量 | 説明 |
 |---|---|---|
-| `std::pair<int, sum_type> count_and_sum_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x < upper を満たす要素の (個数, 総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x <= upper を満たす要素の (個数, 総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x > lower を満たす要素の (個数, 総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x >= lower を満たす要素の (個数, 総和) を返す。 |
-| `sum_type sum_all(int l, int r) const` | O(1) | 区間 [l, r) の総和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素の (個数, 総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素の (個数, 総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素の (個数, 総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素の (個数, 総和) を返す。 |
+| `sum_type sum_all(int l, int r) const` | O(1) | x が xl <= x < xr を満たす点の重み和を返す。 |
 | `sum_type sum_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x < upper の要素の総和を返す。 |
 | `sum_type sum_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x <= upper の要素の総和を返す。 |
 | `sum_type sum_range(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) において lower <= x < upper の要素の総和を返す。 |
@@ -148,23 +148,23 @@
 
 | 関数   | 時間計算量 | 説明 |
 |---|---|---|
-| `int count_less_bitwise(int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op) const` | XOR のとき O(W) / OR / AND のとき O(M) / W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が upper 未満である個数を返す。 |
-| `int range_freq_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper, BitwiseOperation op ) const` | count_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower <= x < upper を満たす個数を返す。 |
-| `int count_less_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op) const` | count_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が upper 以下である個数を返す。 |
-| `int count_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long value, BitwiseOperation op) const` | count_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) がちょうど value に等しい個数を返す。 |
-| `int count_greater_bitwise(int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op) const` | count_less_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower より大きい個数を返す。 |
-| `int count_greater_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op) const` | count_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower 以上である個数を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | XOR のとき O(W) / OR / AND のとき O(M) / W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が upper 未満である要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が upper 以下である要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_range_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower <= x < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_less_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower より大きい要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower 以上の要素について、 (個数, 元の value の総和) を返す。 |
-| `sum_type sum_less_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が upper 未満である要素の、 元の value の総和を返す。 |
-| `sum_type sum_less_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が upper 以下である要素の、 元の value の総和を返す。 |
-| `sum_type sum_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long value, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) がちょうど value に等しい要素の、 元の value の総和を返す。 |
-| `sum_type sum_range_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower <= x < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_greater_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower より大きい要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_greater_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) において、各要素 value に bitwise 演算を施した 結果 op(value, mask) が lower 以上の要素の、 元の value の総和を返す。 |
+| `int count_less_bitwise(int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op) const` | XOR のとき O(W) / OR / AND のとき O(M) / W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y < upper である要素数を返す。 |
+| `int range_freq_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper, BitwiseOperation op ) const` | count_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、lower <= y < upper である要素数を返す。 |
+| `int count_less_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op) const` | count_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y <= upper である要素数を返す。 |
+| `int count_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long value, BitwiseOperation op) const` | count_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y == value である要素数を返す。 |
+| `int count_greater_bitwise(int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op) const` | count_less_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y > lower である要素数を返す。 |
+| `int count_greater_equal_bitwise(int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op) const` | count_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y >= lower である要素数を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | XOR のとき O(W) / OR / AND のとき O(M) / W は unsigned(T) のビット幅、M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y <= upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_range_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、lower <= y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_less_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y > lower である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y >= lower である要素について、(個数, 元の x の総和) を返す。 |
+| `sum_type sum_less_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_less_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y <= upper である要素の元の x の総和を返す。 |
+| `sum_type sum_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long value, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y == value である要素の元の x の総和を返す。 |
+| `sum_type sum_range_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper, BitwiseOperation op ) const` | count_and_sum_less_bitwise を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、lower <= y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_greater_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y > lower である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_equal_bitwise( int l, int r, unsigned long long mask, unsigned long long lower, BitwiseOperation op ) const` | count_and_sum_greater_equal_bitwise を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y >= lower である要素の元の x の総和を返す。 |
 
 ### Bitwise 共通 API（変換後の値に対する検索・列挙）
 
@@ -172,15 +172,15 @@
 | 関数   | 時間計算量 | 説明 |
 |---|---|---|
 | `unsigned long long access_bitwise(int i, unsigned long long mask, BitwiseOperation op) const` | O(1) | i 番目の要素 value に bitwise 演算を施した結果 op(value, mask) を返す。 |
-| `int rank_bitwise(unsigned long long value, int r, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | prefix 区間 [0, r) において、 op(element, mask) == value を満たす個数を返す。 |
-| `int rank_bitwise(unsigned long long value, int l, int r, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | 区間 [l, r) において、 op(element, mask) == value を満たす個数を返す。 |
-| `int count_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | 配列全体において、 op(element, mask) == value を満たす個数を返す。 |
-| `int count_bitwise(unsigned long long value, int l, int r, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | 区間 [l, r) において、 op(element, mask) == value を満たす個数を返す。 |
-| `bool contains_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const` | count_bitwise に準ずる | 配列全体において、 op(element, mask) == value を満たす要素が存在するかを返す。 |
+| `int rank_bitwise(unsigned long long value, int r, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | prefix 区間 [0, r) の各要素 x に対して y = op(x, mask) としたとき、y == value である要素数を返す。 |
+| `int rank_bitwise(unsigned long long value, int l, int r, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y == value である要素数を返す。 |
+| `int count_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | 配列全体の各要素 x に対して y = op(x, mask) としたとき、y == value である要素数を返す。 |
+| `int count_bitwise(unsigned long long value, int l, int r, unsigned long long mask, BitwiseOperation op) const` | count_equal_bitwise に準ずる | 区間 [l, r) の各要素 x に対して y = op(x, mask) としたとき、y == value である要素数を返す。 |
+| `bool contains_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const` | count_bitwise に準ずる | 配列全体の各要素 x に対して y = op(x, mask) としたとき、y == value である要素が存在するかを返す。 |
 | `std::vector<unsigned long long> values_bitwise(unsigned long long mask, BitwiseOperation op) const` | list_frequencies_bitwise(0, n_, mask, op) に準ずる | 配列全体において現れる op(element, mask) の異なる値を昇順で返す。 |
 | `int distinct_size_bitwise(unsigned long long mask, BitwiseOperation op) const` | values_bitwise(mask, op) に準ずる | 配列全体において現れる op(element, mask) の異なる値の個数を返す。 |
 | `int index_of_bitwise(unsigned long long value, unsigned long long mask, BitwiseOperation op) const` | values_bitwise(mask, op) に準ずる | values_bitwise(mask, op) が返す昇順 distinct 配列の中で、 value が現れる位置を返す。存在しなければ -1 を返す。 |
-| `int select_bitwise(unsigned long long value, int kth, unsigned long long mask, BitwiseOperation op) const` | O(log N * C) / C は rank_bitwise(value, r, mask, op) 1 回分 | 0-indexed で kth 番目に現れる op(element, mask) == value を満たす位置を返す。 存在しなければ -1 を返す。 |
+| `int select_bitwise(unsigned long long value, int kth, unsigned long long mask, BitwiseOperation op) const` | O(log N * C) / C は rank_bitwise(value, r, mask, op) 1 回分 | 0-indexed で kth 番目に現れる、y = op(x, mask) が y == value となる位置を返す。存在しなければ -1 を返す。 |
 | `unsigned long long kth_smallest_bitwise( int l, int r, int k, unsigned long long mask, BitwiseOperation op ) const` | O(W * C) / W は unsigned(T) のビット幅、 / C は count_less_equal_bitwise 1 回分 | 区間 [l, r) の op(element, mask) たちを昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
 | `unsigned long long kth_largest_bitwise( int l, int r, int k, unsigned long long mask, BitwiseOperation op ) const` | kth_smallest_bitwise に準ずる | 区間 [l, r) の op(element, mask) たちを降順に見たときの k 番目の値を返す。k は 0-indexed。 |
 | `unsigned long long quantile_bitwise( int l, int r, int k, unsigned long long mask, BitwiseOperation op ) const` | kth_smallest_bitwise に準ずる | kth_smallest_bitwise の別名。 |
@@ -209,46 +209,46 @@
 | `int count_less_xor(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(W) | 区間 [l, r) において (value xor mask) < upper の個数を返す。 |
 | `int range_freq_xor( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | O(W) | 区間 [l, r) において lower <= (value xor mask) < upper の個数を返す。 |
 | `int count_less_equal_xor(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(W) | 区間 [l, r) において (value xor mask) <= upper の個数を返す。 |
-| `int count_equal_xor(int l, int r, unsigned long long mask, unsigned long long value) const` | O(W) | 区間 [l, r) において (value xor mask) == value を満たす個数を返す。 |
+| `int count_equal_xor(int l, int r, unsigned long long mask, unsigned long long value) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y == value である要素数を返す。 |
 | `int count_greater_xor(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(W) | 区間 [l, r) において (value xor mask) > lower の個数を返す。 |
 | `int count_greater_equal_xor(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(W) | 区間 [l, r) において (value xor mask) >= lower の個数を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_xor( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(W) | 区間 [l, r) において (value xor mask) < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal_xor( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(W) | 区間 [l, r) において (value xor mask) <= upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_range_xor( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | O(W) | 区間 [l, r) において lower <= (value xor mask) < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_xor( int l, int r, unsigned long long mask, unsigned long long lower ) const` | O(W) | 区間 [l, r) において (value xor mask) > lower を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal_xor( int l, int r, unsigned long long mask, unsigned long long lower ) const` | O(W) | 区間 [l, r) において (value xor mask) >= lower を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `sum_type sum_less_xor(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(W) | 区間 [l, r) において (value xor mask) < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_less_equal_xor(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(W) | 区間 [l, r) において (value xor mask) <= upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_equal_xor(int l, int r, unsigned long long mask, unsigned long long value) const` | O(W) | 区間 [l, r) において (value xor mask) == value を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_range_xor( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | O(W) | 区間 [l, r) において lower <= (value xor mask) < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_xor(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(W) | 区間 [l, r) において (value xor mask) > lower を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_equal_xor(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(W) | 区間 [l, r) において (value xor mask) >= lower を満たす要素の、 元の value の総和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_xor( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal_xor( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y <= upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_range_xor( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、lower <= y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_xor( int l, int r, unsigned long long mask, unsigned long long lower ) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y > lower である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal_xor( int l, int r, unsigned long long mask, unsigned long long lower ) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y >= lower である要素について、(個数, 元の x の総和) を返す。 |
+| `sum_type sum_less_xor(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_less_equal_xor(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y <= upper である要素の元の x の総和を返す。 |
+| `sum_type sum_equal_xor(int l, int r, unsigned long long mask, unsigned long long value) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y == value である要素の元の x の総和を返す。 |
+| `sum_type sum_range_xor( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、lower <= y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_xor(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y > lower である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_equal_xor(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(W) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y >= lower である要素の元の x の総和を返す。 |
 | `unsigned long long access_xor(int i, unsigned long long mask) const` | O(1) | i 番目の要素に (value xor mask) を施した結果を返す。 |
-| `int rank_xor(unsigned long long value, int r, unsigned long long mask) const` | O(log σ) | prefix 区間 [0, r) において、(element xor mask) == value を満たす個数を返す。 |
-| `int rank_xor(unsigned long long value, int l, int r, unsigned long long mask) const` | O(log σ) | 区間 [l, r) において、(element xor mask) == value を満たす個数を返す。 |
-| `int count_xor(unsigned long long value, unsigned long long mask) const` | O(log σ) | 配列全体において、(element xor mask) == value を満たす個数を返す。 |
-| `int count_xor(unsigned long long value, int l, int r, unsigned long long mask) const` | O(log σ) | 区間 [l, r) において、(element xor mask) == value を満たす個数を返す。 |
-| `bool contains_xor(unsigned long long value, unsigned long long mask) const` | O(log σ) | 配列全体において、(element xor mask) == value を満たす要素が存在するかを返す。 |
+| `int rank_xor(unsigned long long value, int r, unsigned long long mask) const` | O(log σ) | prefix 区間 [0, r) の各要素 x に対して y = (x xor mask) としたとき、y == value である要素数を返す。 |
+| `int rank_xor(unsigned long long value, int l, int r, unsigned long long mask) const` | O(log σ) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y == value である要素数を返す。 |
+| `int count_xor(unsigned long long value, unsigned long long mask) const` | O(log σ) | 配列全体の各要素 x に対して y = (x xor mask) としたとき、y == value である要素数を返す。 |
+| `int count_xor(unsigned long long value, int l, int r, unsigned long long mask) const` | O(log σ) | 区間 [l, r) の各要素 x に対して y = (x xor mask) としたとき、y == value である要素数を返す。 |
+| `bool contains_xor(unsigned long long value, unsigned long long mask) const` | O(log σ) | 配列全体の各要素 x に対して y = (x xor mask) としたとき、y == value である要素が存在するかを返す。 |
 | `std::vector<unsigned long long> values_xor(unsigned long long mask) const` | おおよそ O((σ + 1)W) / W は unsigned(T) のビット幅 | 配列全体において現れる (element xor mask) の異なる値を昇順で返す。 |
 | `int distinct_size_xor(unsigned long long mask) const` | O(1) | 配列全体において現れる (element xor mask) の異なる値の個数を返す。 XOR は全単射なので元の distinct 数と一致する。 |
 | `int index_of_xor(unsigned long long value, unsigned long long mask) const` | おおよそ O((σ + 1)W) / W は unsigned(T) のビット幅 | values_xor(mask) が返す昇順 distinct 配列の中で、value が現れる位置を返す。存在しなければ -1 を返す。 |
-| `int select_xor(unsigned long long value, int kth, unsigned long long mask) const` | O(log σ log N) | 0-indexed で kth 番目に現れる (element xor mask) == value を満たす位置を返す。存在しなければ -1 を返す。 |
-| `unsigned long long kth_smallest_xor(int l, int r, int k, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
-| `unsigned long long kth_largest_xor(int l, int r, int k, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `int select_xor(unsigned long long value, int kth, unsigned long long mask) const` | O(log σ log N) | 0-indexed で kth 番目に現れる、y = (x xor mask) が y == value となる位置を返す。存在しなければ -1 を返す。 |
+| `unsigned long long kth_smallest_xor(int l, int r, int k, unsigned long long mask) const` | O(W) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `unsigned long long kth_largest_xor(int l, int r, int k, unsigned long long mask) const` | O(W) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
 | `unsigned long long quantile_xor(int l, int r, int k, unsigned long long mask) const` | O(W) | kth_smallest_xor の別名。 |
 | `std::optional<unsigned long long> min_value_xor(int l, int r, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の最小値を返す。空区間なら std::nullopt。 |
 | `std::optional<unsigned long long> max_value_xor(int l, int r, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の最大値を返す。空区間なら std::nullopt。 |
-| `std::optional<unsigned long long> median_lower_xor(int l, int r, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の下側中央値を返す。空区間なら std::nullopt。 |
-| `std::optional<unsigned long long> median_upper_xor(int l, int r, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の上側中央値を返す。空区間なら std::nullopt。 |
+| `std::optional<unsigned long long> median_lower_xor(int l, int r, unsigned long long mask) const` | O(W) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<unsigned long long> median_upper_xor(int l, int r, unsigned long long mask) const` | O(W) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値の上側中央値を返す。空区間なら std::nullopt を返す。 |
 | `std::optional<unsigned long long> next_value_ge_xor(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の中で、lower 以上の最小値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> next_value_gt_xor(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の中で、lower より大きい最小値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> prev_value_lt_xor(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の中で、upper 未満の最大値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> prev_value_le_xor(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(W) | 区間 [l, r) の (element xor mask) の中で、upper 以下の最大値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> next_value_xor(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(W) | next_value_ge_xor の別名。 |
 | `std::optional<unsigned long long> prev_value_xor(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(W) | prev_value_lt_xor の別名。 |
-| `std::vector<std::pair<unsigned long long, int>> list_frequencies_xor(int l, int r, unsigned long long mask) const` | おおよそ O((z + 1)W) / z は出力される異なる値の個数、W は unsigned(T) のビット幅 | 区間 [l, r) の (element xor mask) に現れる異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<std::pair<unsigned long long, int>> list_frequencies_xor(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const` | おおよそ O((z + 1)W) / z は出力される異なる値の個数、W は unsigned(T) のビット幅 | 区間 [l, r) の (element xor mask) について、値域 [lower, upper) に属する異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<unsigned long long> distinct_values_xor(int l, int r, unsigned long long mask) const` | list_frequencies_xor(l, r, mask) に準ずる | 区間 [l, r) の (element xor mask) に現れる異なる値を昇順で返す。 |
+| `std::vector<std::pair<unsigned long long, int>> list_frequencies_xor(int l, int r, unsigned long long mask) const` | おおよそ O((z + 1)W) / z は出力される異なる値の個数、W は unsigned(T) のビット幅 | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<unsigned long long, int>> list_frequencies_xor(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const` | おおよそ O((z + 1)W) / z は出力される異なる値の個数、W は unsigned(T) のビット幅 | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<unsigned long long> distinct_values_xor(int l, int r, unsigned long long mask) const` | list_frequencies_xor(l, r, mask) に準ずる | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたときに現れる異なる値を昇順に列挙する。 |
 | `std::vector<std::pair<unsigned long long, int>> top_k_frequent_xor(int l, int r, int k, unsigned long long mask) const` | O((m + 1) log σ + m log k + k log k) / m は区間 [l, r) に現れる異なる元値の個数 | 区間 [l, r) の (element xor mask) に対し、頻度上位 k 個の (値, 出現回数) を返す。 |
 | `std::optional<std::pair<unsigned long long, int>> mode_xor(int l, int r, unsigned long long mask) const` | O((m + 1) log σ) / m は区間 [l, r) に現れる異なる元値の個数 | 区間 [l, r) の (element xor mask) の最頻値を (値, 出現回数) で返す。空区間なら std::nullopt。 |
 | `std::vector<std::tuple<unsigned long long, int, int>> intersect_xor(int l1, int r1, int l2, int r2, unsigned long long mask) const` | おおよそ O((z + 1)W) / z は共通して現れる異なる値の個数、W は unsigned(T) のビット幅 | 2 区間 [l1, r1), [l2, r2) について、共通して現れる (element xor mask) の値を列挙する。 |
@@ -260,46 +260,46 @@
 | `int count_less_or(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) < upper の個数を返す。 |
 | `int range_freq_or( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) において lower <= (value \| mask) < upper の個数を返す。 |
 | `int count_less_equal_or(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) <= upper の個数を返す。 |
-| `int count_equal_or(int l, int r, unsigned long long mask, unsigned long long value) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) == value を満たす個数を返す。 |
+| `int count_equal_or(int l, int r, unsigned long long mask, unsigned long long value) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y == value である要素数を返す。 |
 | `int count_greater_or(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) > lower の個数を返す。 |
 | `int count_greater_equal_or(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) >= lower の個数を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_or( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal_or( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value \| mask) <= upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_range_or( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) において lower <= (value \| mask) < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_or( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_equal_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) > lower を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal_or( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) >= lower を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `sum_type sum_less_or(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_less_equal_or(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_equal_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) <= upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_equal_or(int l, int r, unsigned long long mask, unsigned long long value) const` | count_and_sum_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) == value を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_range_or( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) において lower <= (value \| mask) < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_or(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) > lower を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_equal_or(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_equal_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value \| mask) >= lower を満たす要素の、 元の value の総和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_or( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal_or( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y <= upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_range_or( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、lower <= y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_or( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_equal_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y > lower である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal_or( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y >= lower である要素について、(個数, 元の x の総和) を返す。 |
+| `sum_type sum_less_or(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_less_equal_or(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_equal_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y <= upper である要素の元の x の総和を返す。 |
+| `sum_type sum_equal_or(int l, int r, unsigned long long mask, unsigned long long value) const` | count_and_sum_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y == value である要素の元の x の総和を返す。 |
+| `sum_type sum_range_or( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_or を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、lower <= y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_or(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y > lower である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_equal_or(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_equal_or を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y >= lower である要素の元の x の総和を返す。 |
 | `unsigned long long access_or(int i, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | i 番目の要素に (value \| mask) を施した結果を返す。 |
-| `int rank_or(unsigned long long value, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | prefix 区間 [0, r) において、(value \| mask) == value を満たす個数を返す。 |
-| `int rank_or(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において、(value \| mask) == value を満たす個数を返す。 |
-| `int count_or(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において、(value \| mask) == value を満たす個数を返す。 |
-| `int count_or(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において、(value \| mask) == value を満たす個数を返す。 |
-| `bool contains_or(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において、(value \| mask) == value を満たす要素が存在するかを返す。 |
+| `int rank_or(unsigned long long value, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | prefix 区間 [0, r) の各要素 x に対して y = (x \| mask) としたとき、y == value である要素数を返す。 |
+| `int rank_or(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y == value である要素数を返す。 |
+| `int count_or(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体の各要素 x に対して y = (x \| mask) としたとき、y == value である要素数を返す。 |
+| `int count_or(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x \| mask) としたとき、y == value である要素数を返す。 |
+| `bool contains_or(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体の各要素 x に対して y = (x \| mask) としたとき、y == value である要素が存在するかを返す。 |
 | `std::vector<unsigned long long> values_or(unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において現れる (value \| mask) の異なる値を昇順で返す。 |
 | `int distinct_size_or(unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において現れる (value \| mask) の異なる値の個数を返す。 |
 | `int index_of_or(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | values_or(mask) が返す昇順 distinct 配列の中で、value が現れる位置を返す。存在しなければ -1 を返す。 |
-| `int select_or(unsigned long long value, int kth, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 0-indexed で kth 番目に現れる (value \| mask) == value を満たす位置を返す。存在しなければ -1 を返す。 |
-| `unsigned long long kth_smallest_or(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
-| `unsigned long long kth_largest_or(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `int select_or(unsigned long long value, int kth, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 0-indexed で kth 番目に現れる、z = (x \| mask) が z == value となる位置を返す。存在しなければ -1 を返す。 |
+| `unsigned long long kth_smallest_or(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `unsigned long long kth_largest_or(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
 | `unsigned long long quantile_or(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | kth_smallest_or の別名。 |
 | `std::optional<unsigned long long> min_value_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の最小値を返す。空区間なら std::nullopt。 |
 | `std::optional<unsigned long long> max_value_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の最大値を返す。空区間なら std::nullopt。 |
-| `std::optional<unsigned long long> median_lower_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の下側中央値を返す。空区間なら std::nullopt。 |
-| `std::optional<unsigned long long> median_upper_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の上側中央値を返す。空区間なら std::nullopt。 |
+| `std::optional<unsigned long long> median_lower_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<unsigned long long> median_upper_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値の上側中央値を返す。空区間なら std::nullopt を返す。 |
 | `std::optional<unsigned long long> next_value_ge_or(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の中で、lower 以上の最小値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> next_value_gt_or(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の中で、lower より大きい最小値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> prev_value_lt_or(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の中で、upper 未満の最大値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> prev_value_le_or(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の中で、upper 以下の最大値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> next_value_or(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | next_value_ge_or の別名。 |
 | `std::optional<unsigned long long> prev_value_or(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | prev_value_lt_or の別名。 |
-| `std::vector<std::pair<unsigned long long, int>> list_frequencies_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) に現れる異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<std::pair<unsigned long long, int>> list_frequencies_or(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) について、値域 [lower, upper) に属する異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<unsigned long long> distinct_values_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) に現れる異なる値を昇順で返す。 |
+| `std::vector<std::pair<unsigned long long, int>> list_frequencies_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<unsigned long long, int>> list_frequencies_or(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<unsigned long long> distinct_values_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたときに現れる異なる値を昇順に列挙する。 |
 | `std::vector<std::pair<unsigned long long, int>> top_k_frequent_or(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) に対し、頻度上位 k 個の (値, 出現回数) を返す。 |
 | `std::optional<std::pair<unsigned long long, int>> mode_or(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value \| mask) の最頻値を (値, 出現回数) で返す。空区間なら std::nullopt。 |
 | `std::vector<std::tuple<unsigned long long, int, int>> intersect_or(int l1, int r1, int l2, int r2, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 2 区間 [l1, r1), [l2, r2) について、共通して現れる (value \| mask) の値を列挙する。 |
@@ -312,46 +312,46 @@
 | `int count_less_and(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) < upper の個数を返す。 |
 | `int range_freq_and( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) において lower <= (value & mask) < upper の個数を返す。 |
 | `int count_less_equal_and(int l, int r, unsigned long long mask, unsigned long long upper) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) <= upper の個数を返す。 |
-| `int count_equal_and(int l, int r, unsigned long long mask, unsigned long long value) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) == value を満たす個数を返す。 |
+| `int count_equal_and(int l, int r, unsigned long long mask, unsigned long long value) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y == value である要素数を返す。 |
 | `int count_greater_and(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) > lower の個数を返す。 |
 | `int count_greater_equal_and(int l, int r, unsigned long long mask, unsigned long long lower) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) >= lower の個数を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_and( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal_and( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において (value & mask) <= upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_range_and( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) において lower <= (value & mask) < upper を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_and( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_equal_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) > lower を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal_and( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) >= lower を満たす要素について、 (個数, 元の value の総和) を返す。 |
-| `sum_type sum_less_and(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_less_equal_and(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_equal_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) <= upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_equal_and(int l, int r, unsigned long long mask, unsigned long long value) const` | count_and_sum_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) == value を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_range_and( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) において lower <= (value & mask) < upper を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_and(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) > lower を満たす要素の、 元の value の総和を返す。 |
-| `sum_type sum_greater_equal_and(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_equal_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) において (value & mask) >= lower を満たす要素の、 元の value の総和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_and( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal_and( int l, int r, unsigned long long mask, unsigned long long upper ) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y <= upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_range_and( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、lower <= y < upper である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_and( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_equal_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y > lower である要素について、(個数, 元の x の総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal_and( int l, int r, unsigned long long mask, unsigned long long lower ) const` | count_and_sum_less_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y >= lower である要素について、(個数, 元の x の総和) を返す。 |
+| `sum_type sum_less_and(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_less_equal_and(int l, int r, unsigned long long mask, unsigned long long upper) const` | count_and_sum_less_equal_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y <= upper である要素の元の x の総和を返す。 |
+| `sum_type sum_equal_and(int l, int r, unsigned long long mask, unsigned long long value) const` | count_and_sum_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y == value である要素の元の x の総和を返す。 |
+| `sum_type sum_range_and( int l, int r, unsigned long long mask, unsigned long long lower, unsigned long long upper ) const` | count_and_sum_less_and を 2 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、lower <= y < upper である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_and(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y > lower である要素の元の x の総和を返す。 |
+| `sum_type sum_greater_equal_and(int l, int r, unsigned long long mask, unsigned long long lower) const` | count_and_sum_greater_equal_and を 1 回呼ぶので、それに準ずる | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y >= lower である要素の元の x の総和を返す。 |
 | `unsigned long long access_and(int i, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | i 番目の要素に (value & mask) を施した結果を返す。 |
-| `int rank_and(unsigned long long value, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | prefix 区間 [0, r) において、(value & mask) == value を満たす個数を返す。 |
-| `int rank_and(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において、(value & mask) == value を満たす個数を返す。 |
-| `int count_and(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において、(value & mask) == value を満たす個数を返す。 |
-| `int count_and(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) において、(value & mask) == value を満たす個数を返す。 |
-| `bool contains_and(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において、(value & mask) == value を満たす要素が存在するかを返す。 |
+| `int rank_and(unsigned long long value, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | prefix 区間 [0, r) の各要素 x に対して y = (x & mask) としたとき、y == value である要素数を返す。 |
+| `int rank_and(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y == value である要素数を返す。 |
+| `int count_and(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体の各要素 x に対して y = (x & mask) としたとき、y == value である要素数を返す。 |
+| `int count_and(unsigned long long value, int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して y = (x & mask) としたとき、y == value である要素数を返す。 |
+| `bool contains_and(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体の各要素 x に対して y = (x & mask) としたとき、y == value である要素が存在するかを返す。 |
 | `std::vector<unsigned long long> values_and(unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において現れる (value & mask) の異なる値を昇順で返す。 |
 | `int distinct_size_and(unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 配列全体において現れる (value & mask) の異なる値の個数を返す。 |
 | `int index_of_and(unsigned long long value, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | values_and(mask) が返す昇順 distinct 配列の中で、value が現れる位置を返す。存在しなければ -1 を返す。 |
-| `int select_and(unsigned long long value, int kth, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 0-indexed で kth 番目に現れる (value & mask) == value を満たす位置を返す。存在しなければ -1 を返す。 |
-| `unsigned long long kth_smallest_and(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
-| `unsigned long long kth_largest_and(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `int select_and(unsigned long long value, int kth, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 0-indexed で kth 番目に現れる、z = (x & mask) が z == value となる位置を返す。存在しなければ -1 を返す。 |
+| `unsigned long long kth_smallest_and(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `unsigned long long kth_largest_and(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
 | `unsigned long long quantile_and(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | kth_smallest_and の別名。 |
 | `std::optional<unsigned long long> min_value_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の最小値を返す。空区間なら std::nullopt。 |
 | `std::optional<unsigned long long> max_value_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の最大値を返す。空区間なら std::nullopt。 |
-| `std::optional<unsigned long long> median_lower_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の下側中央値を返す。空区間なら std::nullopt。 |
-| `std::optional<unsigned long long> median_upper_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の上側中央値を返す。空区間なら std::nullopt。 |
+| `std::optional<unsigned long long> median_lower_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<unsigned long long> median_upper_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値の上側中央値を返す。空区間なら std::nullopt を返す。 |
 | `std::optional<unsigned long long> next_value_ge_and(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の中で、lower 以上の最小値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> next_value_gt_and(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の中で、lower より大きい最小値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> prev_value_lt_and(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の中で、upper 未満の最大値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> prev_value_le_and(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の中で、upper 以下の最大値を返す。存在しなければ std::nullopt。 |
 | `std::optional<unsigned long long> next_value_and(int l, int r, unsigned long long lower, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | next_value_ge_and の別名。 |
 | `std::optional<unsigned long long> prev_value_and(int l, int r, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | prev_value_lt_and の別名。 |
-| `std::vector<std::pair<unsigned long long, int>> list_frequencies_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) に現れる異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<std::pair<unsigned long long, int>> list_frequencies_and(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) について、値域 [lower, upper) に属する異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<unsigned long long> distinct_values_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) に現れる異なる値を昇順で返す。 |
+| `std::vector<std::pair<unsigned long long, int>> list_frequencies_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<unsigned long long, int>> list_frequencies_and(int l, int r, unsigned long long lower, unsigned long long upper, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<unsigned long long> distinct_values_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の各要素 x に対して z = (x & mask) としたときに現れる異なる値を昇順に列挙する。 |
 | `std::vector<std::pair<unsigned long long, int>> top_k_frequent_and(int l, int r, int k, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) に対し、頻度上位 k 個の (値, 出現回数) を返す。 |
 | `std::optional<std::pair<unsigned long long, int>> mode_and(int l, int r, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 区間 [l, r) の (value & mask) の最頻値を (値, 出現回数) で返す。空区間なら std::nullopt。 |
 | `std::vector<std::tuple<unsigned long long, int, int>> intersect_and(int l1, int r1, int l2, int r2, unsigned long long mask) const` | O(M) / M は訪問ノード数（最悪 O(2^W)） | 2 区間 [l1, r1), [l2, r2) について、共通して現れる (value & mask) の値を列挙する。 |
@@ -361,7 +361,7 @@
 [ライブラリのリンク](https://github.com/harurunrunrun/GPT-generated-Library/blob/main/library/WeightedWaveletMatrixMonoid.hpp)
 
 
-## `BitVector`
+## BitVector
 
 0/1 のビット列に対して rank / select を扱う補助クラス。
 
@@ -383,7 +383,7 @@
 | `int select0(int k) const` | O(log n) | 0-indexed で k 番目の 0 がある位置を返す。 存在しなければ -1 を返す。 |
 | `int select(bool bit, int k) const` | O(log n) | 0-indexed で k 番目の bit がある位置を返す。 存在しなければ -1 を返す。 |
 
-## `WaveletMatrix`
+## WaveletMatrix
 
 Wavelet Matrix の座標圧縮付き実装。
 
@@ -406,22 +406,22 @@ Wavelet Matrix の座標圧縮付き実装。
 | `int count(const T& value) const` | O(log σ) | 配列全体に含まれる value の個数を返す。 |
 | `int count(const T& value, int l, int r) const` | O(log σ) | 区間 [l, r) に含まれる value の個数を返す。 |
 | `int select(const T& value, int kth) const` | O(log σ log N) | value の kth 回目の出現位置を返す。 |
-| `const T& kth_smallest(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) における順序統計を返す。 |
+| `const T& kth_smallest(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) の要素を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
 | `const T& kth_largest(int l, int r, int k) const` | O(log σ) | 区間 [l, r) の k 番目に大きい値を返す。 k は 0-indexed。 |
 | `const T& quantile(int l, int r, int k) const` | O(log σ) | kth_smallest の別名。 |
-| `std::optional<T> min_value(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の代表値を返す。 |
+| `std::optional<T> min_value(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の最小値を返す。空区間なら std::nullopt を返す。 |
 | `std::optional<T> max_value(int l, int r) const` | O(log σ) | 区間 [l, r) の最大値を返す。 空区間なら std::nullopt を返す。 |
 | `std::optional<T> median_lower(int l, int r) const` | O(log σ) | 区間 [l, r) の下側中央値を返す。 要素数 m に対して floor((m-1)/2) 番目。 空区間なら std::nullopt。 [1,2,10,20] -> 2 |
 | `std::optional<T> median_upper(int l, int r) const` | O(log σ) | 区間 [l, r) の上側中央値を返す。 要素数 m に対して floor(m/2) 番目。 空区間なら std::nullopt。 [1,2,10,20] -> 10 |
-| `int range_freq(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `int range_freq(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) において lower <= x < upper を満たす個数を返す。 |
-| `int count_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x < upper の個数。 |
-| `int count_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x <= upper の個数。 |
-| `std::pair<int, sum_type> count_and_sum_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x < upper を満たす要素の (個数, 総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x <= upper を満たす要素の (個数, 総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x > lower を満たす要素の (個数, 総和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x >= lower を満たす要素の (個数, 総和) を返す。 |
-| `sum_type sum_all(int l, int r) const` | O(1) | 区間 [l, r) の総和を返す。 |
+| `int range_freq(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素数を返す。 |
+| `int range_freq(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、lower <= x < upper である要素数を返す。 |
+| `int count_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素数を返す。 |
+| `int count_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素数を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素の (個数, 総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素の (個数, 総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素の (個数, 総和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素の (個数, 総和) を返す。 |
+| `sum_type sum_all(int l, int r) const` | O(1) | x が xl <= x < xr を満たす点の重み和を返す。 |
 | `sum_type sum_less(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x < upper の要素の総和を返す。 |
 | `sum_type sum_less_equal(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) において x <= upper の要素の総和を返す。 |
 | `sum_type sum_range(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) において lower <= x < upper の要素の総和を返す。 |
@@ -430,9 +430,9 @@ Wavelet Matrix の座標圧縮付き実装。
 | `sum_type sum_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x >= lower の要素の総和を返す。 |
 | `sum_type sum_k_smallest(int l, int r, int k) const` | O(log σ) | 区間 [l, r) の小さい方から k 個の要素の総和を返す。 k は個数であり、0 <= k <= r-l を満たす必要がある。 |
 | `sum_type sum_k_largest(int l, int r, int k) const` | O(log σ) | 区間 [l, r) の大きい方から k 個の要素の総和を返す。 k は個数であり、0 <= k <= r-l を満たす必要がある。 |
-| `int count_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x > lower の個数。 |
-| `int count_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) において x >= lower の個数。 |
-| `std::optional<T> next_value_ge(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域の前駆・後継を返す。 |
+| `int count_greater(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素数を返す。 |
+| `int count_greater_equal(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素数を返す。 |
+| `std::optional<T> next_value_ge(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) にある値 x のうち、x >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
 | `std::optional<T> next_value_gt(int l, int r, const T& lower) const` | O(log σ) | 区間 [l, r) で lower より大きい最小値を返す。 存在しなければ std::nullopt。 |
 | `std::optional<T> prev_value_lt(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) で upper 未満の最大値を返す。 存在しなければ std::nullopt。 |
 | `std::optional<T> prev_value_le(int l, int r, const T& upper) const` | O(log σ) | 区間 [l, r) で upper 以下の最大値を返す。 存在しなければ std::nullopt。 |
@@ -442,10 +442,10 @@ Wavelet Matrix の座標圧縮付き実装。
 | `std::optional<std::pair<T, int>> mode(int l, int r) const` | top_k_frequent(..., 1) に依存 おおよそ O(log σ log log σ) 〜 O(log σ log σ) 実装上は top_k_frequent を利用 | 区間 [l, r) の最頻値を (値, 出現回数) で返す。 空区間なら std::nullopt。 |
 | `std::vector<std::tuple<T, int, int>> intersect(int l1, int r1, int l2, int r2) const` | O(z log σ) z は共通する異なる値の個数 | 2 区間 [l1, r1), [l2, r2) に共通して現れる値を列挙する。 |
 | `std::vector<std::pair<T, int>> list_frequencies(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 値域 [lower, upper) に属するものだけを昇順列挙する。 |
+| `std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) の要素 x について、lower <= x < upper である異なる値を (値, 個数) で昇順に列挙する。 |
 | `std::vector<T> distinct_values(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値を昇順で返す。 |
 
-## `WeightedWaveletMatrix`
+## WeightedWaveletMatrix
 
 値列 data と、各要素に対応する重み weights を持つ Wavelet Matrix。
 
@@ -471,143 +471,143 @@ Wavelet Matrix の座標圧縮付き実装。
 | `sum_type weight_sum(const T& value, int l, int r) const` | O(log σ) | 区間 [l, r) に含まれる value の重み和。 |
 | `sum_type weight_sum(const T& value) const` | O(log σ) | 配列全体における value の重み和を返す。 |
 | `int select(const T& value, int kth) const` | O(log σ log N) | value の kth 回目の出現位置を返す。 |
-| `const T& kth_smallest(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) における順序統計を返す。 |
-| `const T& kth_largest(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) における順序統計を返す。 |
-| `const T& quantile(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) における順序統計を返す。 |
-| `std::optional<T> min_value(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の代表値を返す。 |
-| `std::optional<T> max_value(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の代表値を返す。 |
-| `std::optional<T> median_lower(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の代表値を返す。 |
-| `std::optional<T> median_upper(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の代表値を返す。 |
-| `int range_freq(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `int range_freq(int l, int r, const T& lower, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `int count_less(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `int count_less_equal(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `int count_greater(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `int count_greater_equal(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域条件を満たす要素数を返す。 |
-| `std::pair<int, sum_type> count_and_weight_less(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_less_equal(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_greater(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_greater_equal(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域条件を満たす要素の (個数, 重み和) を返す。 |
-| `sum_type weight_sum_all(int l, int r) const` | weight_sum_all は O(1) それ以外は O(log σ) | weight_sum_greater / weight_sum_greater_equal ------------------------------------------------------------------------- 区間や値域条件に応じた重み和を返す。 |
-| `sum_type weight_sum_less(int l, int r, const T& upper) const` | weight_sum_all は O(1) それ以外は O(log σ) | weight_sum_greater / weight_sum_greater_equal ------------------------------------------------------------------------- 区間や値域条件に応じた重み和を返す。 |
-| `sum_type weight_sum_less_equal(int l, int r, const T& upper) const` | weight_sum_all は O(1) それ以外は O(log σ) | weight_sum_greater / weight_sum_greater_equal ------------------------------------------------------------------------- 区間や値域条件に応じた重み和を返す。 |
-| `sum_type weight_sum_range(int l, int r, const T& lower, const T& upper) const` | weight_sum_all は O(1) それ以外は O(log σ) | weight_sum_greater / weight_sum_greater_equal ------------------------------------------------------------------------- 区間や値域条件に応じた重み和を返す。 |
-| `sum_type weight_sum_greater(int l, int r, const T& lower) const` | weight_sum_all は O(1) それ以外は O(log σ) | weight_sum_greater / weight_sum_greater_equal ------------------------------------------------------------------------- 区間や値域条件に応じた重み和を返す。 |
-| `sum_type weight_sum_greater_equal(int l, int r, const T& lower) const` | weight_sum_all は O(1) それ以外は O(log σ) | weight_sum_greater / weight_sum_greater_equal ------------------------------------------------------------------------- 区間や値域条件に応じた重み和を返す。 |
+| `const T& kth_smallest(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) の要素を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `const T& kth_largest(int l, int r, int k) const` | いずれも O(log σ) | 区間 [l, r) の要素を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `const T& quantile(int l, int r, int k) const` | いずれも O(log σ) | kth_smallest の別名。 |
+| `std::optional<T> min_value(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の最小値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> max_value(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の最大値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_lower(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_upper(int l, int r) const` | いずれも O(log σ) | 区間 [l, r) の上側中央値を返す。空区間なら std::nullopt を返す。 |
+| `int range_freq(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素数を返す。 |
+| `int range_freq(int l, int r, const T& lower, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、lower <= x < upper である要素数を返す。 |
+| `int count_less(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素数を返す。 |
+| `int count_less_equal(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素数を返す。 |
+| `int count_greater(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素数を返す。 |
+| `int count_greater_equal(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素数を返す。 |
+| `std::pair<int, sum_type> count_and_weight_less(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_less_equal(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_greater(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_greater_equal(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素の (個数, 重み和) を返す。 |
+| `sum_type weight_sum_all(int l, int r) const` | weight_sum_all は O(1) それ以外は O(log σ) | 区間 [l, r) の要素の重み和を返す。 |
+| `sum_type weight_sum_less(int l, int r, const T& upper) const` | weight_sum_all は O(1) それ以外は O(log σ) | 区間 [l, r) の要素 x について、x < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_less_equal(int l, int r, const T& upper) const` | weight_sum_all は O(1) それ以外は O(log σ) | 区間 [l, r) の要素 x について、x <= upper である要素の重み和を返す。 |
+| `sum_type weight_sum_range(int l, int r, const T& lower, const T& upper) const` | weight_sum_all は O(1) それ以外は O(log σ) | 区間 [l, r) の要素 x について、lower <= x < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_greater(int l, int r, const T& lower) const` | weight_sum_all は O(1) それ以外は O(log σ) | 区間 [l, r) の要素 x について、x > lower である要素の重み和を返す。 |
+| `sum_type weight_sum_greater_equal(int l, int r, const T& lower) const` | weight_sum_all は O(1) それ以外は O(log σ) | 区間 [l, r) の要素 x について、x >= lower である要素の重み和を返す。 |
 | `sum_type weight_sum_k_smallest(int l, int r, int k) const` | O(log σ) | 区間 [l, r) を値の昇順で見たとき、先頭 k 個の重み和を返す。 同じ値が複数ある場合は、元の並び順で安定に k 個を選ぶ。 |
 | `sum_type weight_sum_k_largest(int l, int r, int k) const` | O(log σ) | 区間 [l, r) の大きい方から k 個の重み和を返す。 |
-| `std::optional<T> next_value_ge(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域の前駆・後継を返す。 |
-| `std::optional<T> next_value_gt(int l, int r, const T& lower) const` | いずれも O(log σ) | 値域の前駆・後継を返す。 |
-| `std::optional<T> prev_value_lt(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域の前駆・後継を返す。 |
-| `std::optional<T> prev_value_le(int l, int r, const T& upper) const` | いずれも O(log σ) | 値域の前駆・後継を返す。 |
+| `std::optional<T> next_value_ge(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) にある値 x のうち、x >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> next_value_gt(int l, int r, const T& lower) const` | いずれも O(log σ) | 区間 [l, r) にある値 x のうち、x > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_value_lt(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) にある値 x のうち、x < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_value_le(int l, int r, const T& upper) const` | いずれも O(log σ) | 区間 [l, r) にある値 x のうち、x <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
 | `std::vector<std::pair<T, int>> list_frequencies(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値を (値, 個数) で昇順列挙する。 |
-| `std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 値域 [lower, upper) に属するものだけを昇順列挙する。 |
+| `std::vector<std::pair<T, int>> list_frequencies(int l, int r, const T& lower, const T& upper) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) の要素 x について、lower <= x < upper である異なる値を (値, 個数) で昇順に列挙する。 |
 | `std::vector<std::pair<T, sum_type>> list_weight_sums(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値を (値, 重み和) で昇順列挙する。 |
-| `std::vector<std::pair<T, sum_type>> list_weight_sums(int l, int r, const T& lower, const T& upper) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 値域 [lower, upper) に属するものだけを昇順列挙する。 |
-| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値を (値, 個数, 重み和) で昇順列挙する。 |
-| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums( int l, int r, const T& lower, const T& upper ) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 値域 [lower, upper) に属するものだけを昇順列挙する。 |
+| `std::vector<std::pair<T, sum_type>> list_weight_sums(int l, int r, const T& lower, const T& upper) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) の要素 x について、lower <= x < upper である異なる値ごとの重み和を (値, 重み和) で昇順に列挙する。 |
+| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値ごとの (個数, 重み和) を (値, 個数, 重み和) で昇順に列挙する。 |
+| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums( int l, int r, const T& lower, const T& upper ) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) の要素 x について、lower <= x < upper である異なる値ごとの (個数, 重み和) を (値, 個数, 重み和) で昇順に列挙する。 |
 | `std::vector<T> distinct_values(int l, int r) const` | おおよそ O((m + 1) log σ) m は出力される異なる値の個数 | 区間 [l, r) に現れる異なる値を昇順で返す。 |
-| `int count_xor_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素数を返す。 |
-| `int count_xor_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素数を返す。 |
-| `int count_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素数を返す。 |
-| `int count_xor_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素数を返す。 |
-| `int count_xor_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素数を返す。 |
-| `int count_xor_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素数を返す。 |
-| `sum_type weight_sum_xor_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_xor_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_xor_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_xor_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_xor_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の重み和を返す。 |
-| `std::pair<int, sum_type> count_and_weight_xor_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_xor_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_xor_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_xor_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_xor_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value ^ mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `T kth_smallest_xor(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の順序統計を返す。 |
-| `T kth_largest_xor(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の順序統計を返す。 |
-| `T quantile_xor(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の順序統計を返す。 |
-| `std::optional<T> min_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> max_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> median_lower_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> median_upper_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> next_xor_value_ge(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の前駆・後継を返す。 |
-| `std::optional<T> next_xor_value_gt(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の前駆・後継を返す。 |
-| `std::optional<T> prev_xor_value_lt(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の前駆・後継を返す。 |
-| `std::optional<T> prev_xor_value_le(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value ^ mask) の前駆・後継を返す。 |
-| `std::vector<std::pair<T, int>> list_frequencies_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::pair<T, sum_type>> list_weight_sums_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<T> distinct_values_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `int count_or_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素数を返す。 |
-| `int count_or_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素数を返す。 |
-| `int count_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素数を返す。 |
-| `int count_or_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素数を返す。 |
-| `int count_or_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素数を返す。 |
-| `int count_or_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素数を返す。 |
-| `sum_type weight_sum_or_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_or_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_or_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_or_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_or_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の重み和を返す。 |
-| `std::pair<int, sum_type> count_and_weight_or_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_or_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_or_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_or_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_or_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value \| mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `T kth_smallest_or(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の順序統計を返す。 |
-| `T kth_largest_or(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の順序統計を返す。 |
-| `T quantile_or(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の順序統計を返す。 |
-| `std::optional<T> min_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> max_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> median_lower_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> median_upper_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> next_or_value_ge(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の前駆・後継を返す。 |
-| `std::optional<T> next_or_value_gt(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の前駆・後継を返す。 |
-| `std::optional<T> prev_or_value_lt(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の前駆・後継を返す。 |
-| `std::optional<T> prev_or_value_le(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value \| mask) の前駆・後継を返す。 |
-| `std::vector<std::pair<T, int>> list_frequencies_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::pair<T, sum_type>> list_weight_sums_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<T> distinct_values_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `int count_and_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素数を返す。 |
-| `int count_and_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素数を返す。 |
-| `int count_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素数を返す。 |
-| `int count_and_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素数を返す。 |
-| `int count_and_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素数を返す。 |
-| `int count_and_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素数を返す。 |
-| `sum_type weight_sum_and_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_and_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_and_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_and_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の重み和を返す。 |
-| `sum_type weight_sum_and_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の重み和を返す。 |
-| `std::pair<int, sum_type> count_and_weight_and_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_and_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_and_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_and_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_weight_and_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) において、(value & mask) が条件を満たす要素の (個数, 重み和) を返す。 |
-| `T kth_smallest_and(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の順序統計を返す。 |
-| `T kth_largest_and(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の順序統計を返す。 |
-| `T quantile_and(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の順序統計を返す。 |
-| `std::optional<T> min_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> max_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> median_lower_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> median_upper_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の代表値を返す。 空区間なら std::nullopt を返す。 |
-| `std::optional<T> next_and_value_ge(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の前駆・後継を返す。 |
-| `std::optional<T> next_and_value_gt(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の前駆・後継を返す。 |
-| `std::optional<T> prev_and_value_lt(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の前駆・後継を返す。 |
-| `std::optional<T> prev_and_value_le(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) における (value & mask) の前駆・後継を返す。 |
-| `std::vector<std::pair<T, int>> list_frequencies_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::pair<T, sum_type>> list_weight_sums_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<T> distinct_values_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) に現れる (value & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
+| `int count_xor_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z < upper である要素数を返す。 |
+| `int count_xor_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z <= upper である要素数を返す。 |
+| `int count_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、lower <= z < upper である要素数を返す。 |
+| `int count_xor_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z > lower である要素数を返す。 |
+| `int count_xor_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z >= lower である要素数を返す。 |
+| `int count_xor_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z == value である要素数を返す。 |
+| `sum_type weight_sum_xor_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_xor_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z <= upper である要素の重み和を返す。 |
+| `sum_type weight_sum_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、lower <= z < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_xor_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z > lower である要素の重み和を返す。 |
+| `sum_type weight_sum_xor_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z >= lower である要素の重み和を返す。 |
+| `sum_type weight_sum_xor_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z == value である要素の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_weight_xor_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_xor_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z <= upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_xor_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、lower <= z < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_xor_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z > lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_xor_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z >= lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_xor_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたとき、z == value である要素の (個数, 重み和) を返す。 |
+| `T kth_smallest_xor(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `T kth_largest_xor(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `T quantile_xor(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | kth_smallest_xor の別名。 |
+| `std::optional<T> min_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値の最小値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> max_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値の最大値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_lower_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_upper_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値の上側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> next_xor_value_ge(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値のうち、z >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> next_xor_value_gt(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値のうち、z > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_xor_value_lt(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値のうち、z < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_xor_value_le(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値のうち、z <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<T, int>> list_frequencies_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<T, sum_type>> list_weight_sums_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値について、(値, 重み和) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) とした値について、(値, 個数, 重み和) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<T> distinct_values_xor(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x ^ mask) としたときに現れる異なる値を昇順に列挙する。 |
+| `int count_or_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z < upper である要素数を返す。 |
+| `int count_or_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z <= upper である要素数を返す。 |
+| `int count_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、lower <= z < upper である要素数を返す。 |
+| `int count_or_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z > lower である要素数を返す。 |
+| `int count_or_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z >= lower である要素数を返す。 |
+| `int count_or_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z == value である要素数を返す。 |
+| `sum_type weight_sum_or_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_or_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z <= upper である要素の重み和を返す。 |
+| `sum_type weight_sum_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、lower <= z < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_or_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z > lower である要素の重み和を返す。 |
+| `sum_type weight_sum_or_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z >= lower である要素の重み和を返す。 |
+| `sum_type weight_sum_or_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z == value である要素の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_weight_or_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_or_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z <= upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_or_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、lower <= z < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_or_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z > lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_or_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z >= lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_or_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたとき、z == value である要素の (個数, 重み和) を返す。 |
+| `T kth_smallest_or(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `T kth_largest_or(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `T quantile_or(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | kth_smallest_or の別名。 |
+| `std::optional<T> min_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値の最小値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> max_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値の最大値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_lower_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_upper_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値の上側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> next_or_value_ge(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値のうち、z >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> next_or_value_gt(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値のうち、z > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_or_value_lt(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値のうち、z < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_or_value_le(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値のうち、z <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<T, int>> list_frequencies_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<T, sum_type>> list_weight_sums_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値について、(値, 重み和) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) とした値について、(値, 個数, 重み和) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<T> distinct_values_or(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x \| mask) としたときに現れる異なる値を昇順に列挙する。 |
+| `int count_and_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z < upper である要素数を返す。 |
+| `int count_and_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z <= upper である要素数を返す。 |
+| `int count_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、lower <= z < upper である要素数を返す。 |
+| `int count_and_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z > lower である要素数を返す。 |
+| `int count_and_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z >= lower である要素数を返す。 |
+| `int count_and_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z == value である要素数を返す。 |
+| `sum_type weight_sum_and_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_and_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z <= upper である要素の重み和を返す。 |
+| `sum_type weight_sum_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、lower <= z < upper である要素の重み和を返す。 |
+| `sum_type weight_sum_and_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z > lower である要素の重み和を返す。 |
+| `sum_type weight_sum_and_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z >= lower である要素の重み和を返す。 |
+| `sum_type weight_sum_and_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z == value である要素の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_weight_and_less(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_and_less_equal(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z <= upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_and_range(int l, int r, const T& mask, const T& lower, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、lower <= z < upper である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_and_greater(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z > lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_and_greater_equal(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z >= lower である要素の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_weight_and_equal(int l, int r, const T& mask, const T& value) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたとき、z == value である要素の (個数, 重み和) を返す。 |
+| `T kth_smallest_and(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `T kth_largest_and(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `T quantile_and(int l, int r, const T& mask, int k) const` | いずれもおおよそ O((m + 1) log σ + m log m) | kth_smallest_and の別名。 |
+| `std::optional<T> min_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値の最小値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> max_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値の最大値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_lower_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値の下側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> median_upper_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値の上側中央値を返す。空区間なら std::nullopt を返す。 |
+| `std::optional<T> next_and_value_ge(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値のうち、z >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> next_and_value_gt(int l, int r, const T& mask, const T& lower) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値のうち、z > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_and_value_lt(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値のうち、z < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<T> prev_and_value_le(int l, int r, const T& mask, const T& upper) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値のうち、z <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<T, int>> list_frequencies_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<T, sum_type>> list_weight_sums_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値について、(値, 重み和) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::tuple<T, int, sum_type>> list_frequencies_and_weight_sums_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) とした値について、(値, 個数) を昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<T> distinct_values_and(int l, int r, const T& mask) const` | いずれもおおよそ O((m + 1) log σ + m log m) | 区間 [l, r) の各要素 x に対して z = (x & mask) としたときに現れる異なる値を昇順に列挙する。 |
 
-## `RectangleSum`
+## RectangleSum
 
 点集合 (x, y, w) に対する静的な矩形和クエリ。
 
@@ -618,145 +618,145 @@ Wavelet Matrix の座標圧縮付き実装。
 | `RectangleSum( const std::vector<X>& xs, const std::vector<Y>& ys, const std::vector<Weight>& weights )` | O(N log N + N log σ) | 座標と重みを別配列で受け取って構築する。 |
 | `void build(const std::vector<std::tuple<X, Y, Weight>>& points)` | O(N log N + N log σ) | 点列から再構築する。 |
 | `void build( const std::vector<X>& xs, const std::vector<Y>& ys, const std::vector<Weight>& weights )` | O(N log N + N log σ) | 座標と重みを別配列で受け取って構築する。 |
-| `int size() const` | いずれも O(1) | 点数と空判定を返す。 |
-| `bool empty() const` | いずれも O(1) | 点数と空判定を返す。 |
-| `const std::vector<X>& x_values() const` | いずれも O(1) | 内部に保持している配列や Wavelet Matrix を返す。 |
-| `const std::vector<Y>& y_values_sorted_by_x() const` | いずれも O(1) | 内部に保持している配列や Wavelet Matrix を返す。 |
-| `const std::vector<Weight>& weights_sorted_by_x() const` | いずれも O(1) | 内部に保持している配列や Wavelet Matrix を返す。 |
-| `const wm_type& wavelet_matrix() const` | いずれも O(1) | 内部に保持している配列や Wavelet Matrix を返す。 |
+| `int size() const` | いずれも O(1) | 保持している点の個数を返す。 |
+| `bool empty() const` | いずれも O(1) | 保持している点が 0 個なら true、1 個以上なら false を返す。 |
+| `const std::vector<X>& x_values() const` | いずれも O(1) | 内部で保持している x 座標の一覧を返す。 |
+| `const std::vector<Y>& y_values_sorted_by_x() const` | いずれも O(1) | x の昇順に並べ替えた順で、対応する y 座標の一覧を返す。 |
+| `const std::vector<Weight>& weights_sorted_by_x() const` | いずれも O(1) | x の昇順に並べ替えた順で、対応する重みの一覧を返す。 |
+| `const wm_type& wavelet_matrix() const` | いずれも O(1) | 内部で使っている Wavelet Matrix を返す。 |
 | `int count(const X& xl, const X& xr, const Y& yl, const Y& yr) const` | O(log N + log σ) | 矩形 [xl, xr) × [yl, yr) に入る点数。 |
 | `sum_type sum(const X& xl, const X& xr, const Y& yl, const Y& yr) const` | O(log N + log σ) | 矩形 [xl, xr) × [yl, yr) に入る点の重み和。 |
-| `int count_all(const X& xl, const X& xr) const` | count_all は O(log N) sum_all は O(log N) | x 範囲 [xl, xr) に入る全点についての個数 / 重み和。 |
-| `sum_type sum_all(const X& xl, const X& xr) const` | count_all は O(log N) sum_all は O(log N) | x 範囲 [xl, xr) に入る全点についての個数 / 重み和。 |
-| `int count_less_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす点数を返す。 |
-| `int count_less_equal_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす点数を返す。 |
-| `int count_greater_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす点数を返す。 |
-| `int count_greater_equal_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす点数を返す。 |
-| `sum_type sum_less_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす重み和を返す。 |
-| `sum_type sum_less_equal_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす重み和を返す。 |
-| `sum_type sum_greater_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす重み和を返す。 |
-| `sum_type sum_greater_equal_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y 条件を満たす重み和を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y 条件付き (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_less_equal_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y 条件付き (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y 条件付き (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_greater_equal_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y 条件付き (個数, 重み和) を返す。 |
-| `const Y& kth_smallest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点の y を昇順 / 降順に見たときの k 番目。 |
-| `const Y& kth_largest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点の y を昇順 / 降順に見たときの k 番目。 |
-| `sum_type sum_k_smallest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点を y の昇順 / 降順で見たとき、 先頭 k 個の重み和を返す。 |
-| `sum_type sum_k_largest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点を y の昇順 / 降順で見たとき、 先頭 k 個の重み和を返す。 |
-| `std::optional<Y> min_y(const X& xl, const X& xr) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y の代表値や前駆・後継を返す。 |
-| `std::optional<Y> max_y(const X& xl, const X& xr) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y の代表値や前駆・後継を返す。 |
-| `std::optional<Y> next_y_ge(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y の代表値や前駆・後継を返す。 |
-| `std::optional<Y> next_y_gt(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y の代表値や前駆・後継を返す。 |
-| `std::optional<Y> prev_y_lt(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y の代表値や前駆・後継を返す。 |
-| `std::optional<Y> prev_y_le(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) 内での y の代表値や前駆・後継を返す。 |
-| `std::vector<std::pair<Y, int>> list_frequencies(const X& xl, const X& xr) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの情報を昇順列挙する。 |
-| `std::vector<std::pair<Y, int>> list_frequencies( const X& xl, const X& xr, const Y& yl, const Y& yr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの情報を昇順列挙する。 |
-| `std::vector<std::pair<Y, sum_type>> list_weight_sums(const X& xl, const X& xr) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの情報を昇順列挙する。 |
-| `std::vector<std::pair<Y, sum_type>> list_weight_sums( const X& xl, const X& xr, const Y& yl, const Y& yr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの情報を昇順列挙する。 |
-| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums( const X& xl, const X& xr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの情報を昇順列挙する。 |
-| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums( const X& xl, const X& xr, const Y& yl, const Y& yr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの情報を昇順列挙する。 |
-| `int count_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点数を返す。 |
-| `int count_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点数を返す。 |
-| `int count_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点数を返す。 |
-| `int count_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点数を返す。 |
-| `int count_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点数を返す。 |
-| `int count_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点数を返す。 |
-| `sum_type sum_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の重み和を返す。 |
-| `std::pair<int, sum_type> count_and_sum_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `Y kth_smallest_xor_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の順序統計を返す。 |
-| `Y kth_largest_xor_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の順序統計を返す。 |
-| `Y quantile_xor_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の順序統計を返す。 |
-| `std::optional<Y> min_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> max_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> median_lower_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> median_upper_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> next_xor_value_ge_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の前駆・後継を返す。 |
-| `std::optional<Y> next_xor_value_gt_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の前駆・後継を返す。 |
-| `std::optional<Y> prev_xor_value_lt_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の前駆・後継を返す。 |
-| `std::optional<Y> prev_xor_value_le_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y ^ mask) の前駆・後継を返す。 |
-| `std::vector<std::pair<Y, int>> list_frequencies_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::pair<Y, sum_type>> list_weight_sums_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<Y> distinct_values_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y ^ mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `int count_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点数を返す。 |
-| `int count_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点数を返す。 |
-| `int count_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点数を返す。 |
-| `int count_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点数を返す。 |
-| `int count_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点数を返す。 |
-| `int count_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点数を返す。 |
-| `sum_type sum_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の重み和を返す。 |
-| `std::pair<int, sum_type> count_and_sum_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `Y kth_smallest_or_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の順序統計を返す。 |
-| `Y kth_largest_or_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の順序統計を返す。 |
-| `Y quantile_or_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の順序統計を返す。 |
-| `std::optional<Y> min_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> max_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> median_lower_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> median_upper_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> next_or_value_ge_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の前駆・後継を返す。 |
-| `std::optional<Y> next_or_value_gt_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の前駆・後継を返す。 |
-| `std::optional<Y> prev_or_value_lt_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の前駆・後継を返す。 |
-| `std::optional<Y> prev_or_value_le_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y \| mask) の前駆・後継を返す。 |
-| `std::vector<std::pair<Y, int>> list_frequencies_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::pair<Y, sum_type>> list_weight_sums_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<Y> distinct_values_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y \| mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `int count_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点数を返す。 |
-| `int count_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点数を返す。 |
-| `int count_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点数を返す。 |
-| `int count_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点数を返す。 |
-| `int count_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点数を返す。 |
-| `int count_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点数を返す。 |
-| `sum_type sum_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の重み和を返す。 |
-| `sum_type sum_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の重み和を返す。 |
-| `std::pair<int, sum_type> count_and_sum_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `std::pair<int, sum_type> count_and_sum_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) が条件を満たす点の (個数, 重み和) を返す。 |
-| `Y kth_smallest_and_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の順序統計を返す。 |
-| `Y kth_largest_and_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の順序統計を返す。 |
-| `Y quantile_and_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の順序統計を返す。 |
-| `std::optional<Y> min_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> max_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> median_lower_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> median_upper_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の代表値を返す。 空なら std::nullopt を返す。 |
-| `std::optional<Y> next_and_value_ge_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の前駆・後継を返す。 |
-| `std::optional<Y> next_and_value_gt_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の前駆・後継を返す。 |
-| `std::optional<Y> prev_and_value_lt_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の前駆・後継を返す。 |
-| `std::optional<Y> prev_and_value_le_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、(y & mask) の前駆・後継を返す。 |
-| `std::vector<std::pair<Y, int>> list_frequencies_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::pair<Y, sum_type>> list_weight_sums_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
-| `std::vector<Y> distinct_values_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に現れる (y & mask) を昇順列挙する。 変換後に同じ値になったものは集約する。 |
+| `int count_all(const X& xl, const X& xr) const` | count_all は O(log N) sum_all は O(log N) | x が xl <= x < xr を満たす点の個数を返す。 |
+| `sum_type sum_all(const X& xl, const X& xr) const` | count_all は O(log N) sum_all は O(log N) | x が xl <= x < xr を満たす点の重み和を返す。 |
+| `int count_less_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y < upper である点の個数を返す。 |
+| `int count_less_equal_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y <= upper である点の個数を返す。 |
+| `int count_greater_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y > lower である点の個数を返す。 |
+| `int count_greater_equal_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y >= lower である点の個数を返す。 |
+| `sum_type sum_less_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y < upper である点の重み和を返す。 |
+| `sum_type sum_less_equal_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y <= upper である点の重み和を返す。 |
+| `sum_type sum_greater_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y > lower である点の重み和を返す。 |
+| `sum_type sum_greater_equal_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y >= lower である点の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_less_equal_y(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y <= upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y > lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_greater_equal_y(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点のうち、y >= lower である点の (個数, 重み和) を返す。 |
+| `const Y& kth_smallest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点の y を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `const Y& kth_largest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点の y を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `sum_type sum_k_smallest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点を y の昇順に並べたとき、先頭 k 個の点の重み和を返す。 |
+| `sum_type sum_k_largest_y(const X& xl, const X& xr, int k) const` | O(log N + log σ) | x 範囲 [xl, xr) に入る点を y の降順に並べたとき、先頭 k 個の点の重み和を返す。 |
+| `std::optional<Y> min_y(const X& xl, const X& xr) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点の y の最小値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> max_y(const X& xl, const X& xr) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点の y の最大値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> next_y_ge(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点の y のうち、y >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> next_y_gt(const X& xl, const X& xr, const Y& lower) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点の y のうち、y > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_y_lt(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点の y のうち、y < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_y_le(const X& xl, const X& xr, const Y& upper) const` | いずれも O(log N + log σ) | x 範囲 [xl, xr) に入る点の y のうち、y <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<Y, int>> list_frequencies(const X& xl, const X& xr) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの個数を (y, 個数) で昇順に列挙する。 |
+| `std::vector<std::pair<Y, int>> list_frequencies( const X& xl, const X& xr, const Y& yl, const Y& yr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) かつ y 範囲 [yl, yr) に入る点について、y ごとの個数を (y, 個数) で昇順に列挙する。 |
+| `std::vector<std::pair<Y, sum_type>> list_weight_sums(const X& xl, const X& xr) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの重み和を (y, 重み和) で昇順に列挙する。 |
+| `std::vector<std::pair<Y, sum_type>> list_weight_sums( const X& xl, const X& xr, const Y& yl, const Y& yr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) かつ y 範囲 [yl, yr) に入る点について、y ごとの重み和を (y, 重み和) で昇順に列挙する。 |
+| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums( const X& xl, const X& xr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) に入る点について、y ごとの (個数, 重み和) を (y, 個数, 重み和) で昇順に列挙する。 |
+| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums( const X& xl, const X& xr, const Y& yl, const Y& yr ) const` | おおよそ O(log N + (m + 1) log σ) m は出力される異なる y の個数 | x 範囲 [xl, xr) かつ y 範囲 [yl, yr) に入る点について、y ごとの (個数, 重み和) を (y, 個数, 重み和) で昇順に列挙する。 |
+| `int count_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' < upper である点の個数を返す。 |
+| `int count_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' <= upper である点の個数を返す。 |
+| `int count_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき lower <= y' < upper である点の個数を返す。 |
+| `int count_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' > lower である点の個数を返す。 |
+| `int count_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' >= lower である点の個数を返す。 |
+| `int count_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' == value である点の個数を返す。 |
+| `sum_type sum_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' < upper である点の重み和を返す。 |
+| `sum_type sum_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' <= upper である点の重み和を返す。 |
+| `sum_type sum_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき lower <= y' < upper である点の重み和を返す。 |
+| `sum_type sum_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' > lower である点の重み和を返す。 |
+| `sum_type sum_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' >= lower である点の重み和を返す。 |
+| `sum_type sum_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' == value である点の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_xor_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_xor_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' <= upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_xor_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき lower <= y' < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_xor_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' > lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_xor_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' >= lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_xor_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたとき y' == value である点の (個数, 重み和) を返す。 |
+| `Y kth_smallest_xor_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `Y kth_largest_xor_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `Y quantile_xor_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | kth_smallest_xor_y の別名。 |
+| `std::optional<Y> min_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値の最小値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> max_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値の最大値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> median_lower_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値の下側中央値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> median_upper_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値の上側中央値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> next_xor_value_ge_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値のうち、y' >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> next_xor_value_gt_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値のうち、y' > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_xor_value_lt_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値のうち、y' < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_xor_value_le_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値のうち、y' <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<Y, int>> list_frequencies_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値ごとの個数を (値, 個数) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<Y, sum_type>> list_weight_sums_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値ごとの重み和を (値, 重み和) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) とした値ごとの (個数, 重み和) を (値, 個数, 重み和) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<Y> distinct_values_xor_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y ^ mask) としたときに現れる異なる値を昇順に列挙する。 |
+| `int count_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' < upper である点の個数を返す。 |
+| `int count_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' <= upper である点の個数を返す。 |
+| `int count_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき lower <= y' < upper である点の個数を返す。 |
+| `int count_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' > lower である点の個数を返す。 |
+| `int count_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' >= lower である点の個数を返す。 |
+| `int count_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' == value である点の個数を返す。 |
+| `sum_type sum_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' < upper である点の重み和を返す。 |
+| `sum_type sum_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' <= upper である点の重み和を返す。 |
+| `sum_type sum_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき lower <= y' < upper である点の重み和を返す。 |
+| `sum_type sum_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' > lower である点の重み和を返す。 |
+| `sum_type sum_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' >= lower である点の重み和を返す。 |
+| `sum_type sum_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' == value である点の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_or_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_or_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' <= upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_or_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき lower <= y' < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_or_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' > lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_or_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' >= lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_or_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたとき y' == value である点の (個数, 重み和) を返す。 |
+| `Y kth_smallest_or_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `Y kth_largest_or_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `Y quantile_or_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | kth_smallest_or_y の別名。 |
+| `std::optional<Y> min_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値の最小値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> max_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値の最大値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> median_lower_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値の下側中央値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> median_upper_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値の上側中央値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> next_or_value_ge_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値のうち、y' >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> next_or_value_gt_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値のうち、y' > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_or_value_lt_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値のうち、y' < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_or_value_le_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値のうち、y' <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<Y, int>> list_frequencies_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値ごとの個数を (値, 個数) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<Y, sum_type>> list_weight_sums_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値ごとの重み和を (値, 重み和) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) とした値ごとの (個数, 重み和) を (値, 個数, 重み和) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<Y> distinct_values_or_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y \| mask) としたときに現れる異なる値を昇順に列挙する。 |
+| `int count_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' < upper である点の個数を返す。 |
+| `int count_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' <= upper である点の個数を返す。 |
+| `int count_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき lower <= y' < upper である点の個数を返す。 |
+| `int count_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' > lower である点の個数を返す。 |
+| `int count_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' >= lower である点の個数を返す。 |
+| `int count_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' == value である点の個数を返す。 |
+| `sum_type sum_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' < upper である点の重み和を返す。 |
+| `sum_type sum_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' <= upper である点の重み和を返す。 |
+| `sum_type sum_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき lower <= y' < upper である点の重み和を返す。 |
+| `sum_type sum_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' > lower である点の重み和を返す。 |
+| `sum_type sum_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' >= lower である点の重み和を返す。 |
+| `sum_type sum_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' == value である点の重み和を返す。 |
+| `std::pair<int, sum_type> count_and_sum_and_less_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_and_less_equal_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' <= upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_and_range_y(const X& xl, const X& xr, const Y& mask, const Y& lower, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき lower <= y' < upper である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_and_greater_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' > lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_and_greater_equal_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' >= lower である点の (個数, 重み和) を返す。 |
+| `std::pair<int, sum_type> count_and_sum_and_equal_y(const X& xl, const X& xr, const Y& mask, const Y& value) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたとき y' == value である点の (個数, 重み和) を返す。 |
+| `Y kth_smallest_and_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値を昇順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `Y kth_largest_and_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値を降順に見たときの k 番目の値を返す。k は 0-indexed。 |
+| `Y quantile_and_y(const X& xl, const X& xr, const Y& mask, int k) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | kth_smallest_and_y の別名。 |
+| `std::optional<Y> min_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値の最小値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> max_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値の最大値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> median_lower_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値の下側中央値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> median_upper_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値の上側中央値を返す。空なら std::nullopt を返す。 |
+| `std::optional<Y> next_and_value_ge_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値のうち、y' >= lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> next_and_value_gt_y(const X& xl, const X& xr, const Y& mask, const Y& lower) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値のうち、y' > lower を満たす最小の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_and_value_lt_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値のうち、y' < upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::optional<Y> prev_and_value_le_y(const X& xl, const X& xr, const Y& mask, const Y& upper) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値のうち、y' <= upper を満たす最大の値を返す。存在しなければ std::nullopt を返す。 |
+| `std::vector<std::pair<Y, int>> list_frequencies_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値ごとの個数を (値, 個数) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::pair<Y, sum_type>> list_weight_sums_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値ごとの重み和を (値, 重み和) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<std::tuple<Y, int, sum_type>> list_frequencies_and_weight_sums_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) とした値ごとの (個数, 重み和) を (値, 個数, 重み和) で昇順に列挙する。変換後に同じ値になったものは集約する。 |
+| `std::vector<Y> distinct_values_and_y(const X& xl, const X& xr, const Y& mask) const` | いずれもおおよそ O(log N + (m + 1) log σ + m log m) | x 範囲 [xl, xr) に入る点について、y' = (y & mask) としたときに現れる異なる値を昇順に列挙する。 |
 
-## `StaticRangeMonoid`
+## StaticRangeMonoid
 
 静的配列上の range fold を行うセグメント木。
 
@@ -767,7 +767,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `void build(const std::vector<value_type>& a)` | O(N) | 配列から再構築する。 |
 | `value_type prod(int l, int r) const` | O(log N) | 区間 [l, r) のモノイド積を返す。 |
 
-## `CommutativeMonoidWaveletMatrix`
+## CommutativeMonoidWaveletMatrix
 
 値列 data と、それぞれに対応するモノイド値 vals を持つ Wavelet Matrix。
 
@@ -781,11 +781,11 @@ Wavelet Matrix の座標圧縮付き実装。
 | `int distinct_size() const` | O(1) | 異なる値の個数を返す。 |
 | `int bit_size() const` | O(1) | 内部で使うビット長を返す。 |
 | `const std::vector<T>& values() const` | O(1) | 座標圧縮後の異なる値一覧を返す。 |
-| `int range_freq(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) で値域 [lower, upper) に入る要素数を返す。 |
+| `int range_freq(int l, int r, const T& lower, const T& upper) const` | O(log σ) | 区間 [l, r) の要素 x について、lower <= x < upper である要素数を返す。 |
 | `prod_type prod_range(int l, int r, const T& lower, const T& upper) const` | O(log N * log σ) | 区間 [l, r) で値域 [lower, upper) に入る要素のモノイド積を返す。 |
 | `prod_type prod_all(int l, int r) const` | O(log N * log σ) | 区間 [l, r) 全体のモノイド積を返す。 |
 
-## `RectangleMonoid`
+## RectangleMonoid
 
 点集合 (x, y, value) に対して、長方形 [xl, xr) x [yl, yr) 内の 個数とモノイド積を返す静的データ構造。
 
@@ -802,7 +802,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `prod_type prod(const X& xl, const X& xr, const Y& yl, const Y& yr) const` | O(log N + log N * log σ) | 矩形 [xl, xr) × [yl, yr) のモノイド積を返す。 |
 | `prod_type prod_all(const X& xl, const X& xr) const` | O(log N + log N * log σ) | x 範囲 [xl, xr) 全体のモノイド積を返す。 |
 
-## `rect_monoid::Sum`
+## rect_monoid::Sum
 
 通常の加法モノイド。
 
@@ -811,7 +811,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::Product`
+## rect_monoid::Product
 
 通常の乗法モノイド。
 
@@ -820,7 +820,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::Min`
+## rect_monoid::Min
 
 最小値モノイド。
 
@@ -829,7 +829,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::Max`
+## rect_monoid::Max
 
 最大値モノイド。
 
@@ -838,7 +838,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::Gcd`
+## rect_monoid::Gcd
 
 最大公約数モノイド。
 
@@ -847,7 +847,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::Lcm`
+## rect_monoid::Lcm
 
 最小公倍数モノイド。
 
@@ -856,7 +856,7 @@ Wavelet Matrix の座標圧縮付き実装。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::Xor`
+## rect_monoid::Xor
 
 xor モノイド。
 
@@ -865,7 +865,7 @@ xor モノイド。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::BitAnd`
+## rect_monoid::BitAnd
 
 bitwise AND モノイド。
 
@@ -874,7 +874,7 @@ bitwise AND モノイド。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::BitOr`
+## rect_monoid::BitOr
 
 bitwise OR モノイド。
 
@@ -883,7 +883,7 @@ bitwise OR モノイド。
 | `static constexpr value_type id()` | O(1) | モノイドの単位元を返す。 |
 | `static constexpr value_type op(const value_type& a, const value_type& b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::AddMod998244353`
+## rect_monoid::AddMod998244353
 
 mod 998244353 での加法モノイド。
 
@@ -893,7 +893,7 @@ mod 998244353 での加法モノイド。
 | `static constexpr value_type normalize(value_type x)` | O(1) | 値を法 998244353 の範囲へ正規化する。 |
 | `static constexpr value_type op(value_type a, value_type b)` | O(1) | モノイド演算を適用する。 |
 
-## `rect_monoid::MulMod998244353`
+## rect_monoid::MulMod998244353
 
 mod 998244353 での乗法モノイド。
 
@@ -996,5 +996,4 @@ mod 998244353 での乗法モノイド。
 | `RectangleBitOr<X, Y, Weight = unsigned long long>` | `RectangleMonoid<X, Y, rect_monoid::BitOr<Weight>>` |
 | `RectangleAddMod998244353<X, Y>` | `RectangleMonoid<X, Y, rect_monoid::AddMod998244353>` |
 | `RectangleMulMod998244353<X, Y>` | `RectangleMonoid<X, Y, rect_monoid::MulMod998244353>` |
-
 
