@@ -903,4 +903,98 @@ mod 998244353 での乗法モノイド。
 | `static constexpr value_type normalize(value_type x)` | O(1) | 値を法 998244353 の範囲へ正規化する。 |
 | `static constexpr value_type op(value_type a, value_type b)` | O(1) | モノイド演算を適用する。 |
 
+## 型エイリアス
+
+
+### `WaveletMatrix`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `value_type = T` | 値型。 |
+| `sum_type = long long` | 総和系クエリで使う型。 |
+
+### `WeightedWaveletMatrix`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `value_type = T` | 値型。 |
+| `weight_type = Weight` | 重み型。 |
+| `sum_type = std::common_type_t<Weight, long long>` | 重み和で使う型。 |
+
+### `RectangleSum`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `x_type = X` | x 座標の型。 |
+| `y_type = Y` | y 座標の型。 |
+| `weight_type = Weight` | 重み型。 |
+| `wm_type = WeightedWaveletMatrix<Y, Weight>` | 内部で使う WeightedWaveletMatrix の型。 |
+| `sum_type = typename wm_type::sum_type` | 重み和で使う型。 |
+
+### `rect_monoid::*`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `rect_monoid::Sum<T>::value_type = T` | 加法モノイドの値型。 |
+| `rect_monoid::Product<T>::value_type = T` | 乗法モノイドの値型。 |
+| `rect_monoid::Min<T>::value_type = T` | 最小値モノイドの値型。 |
+| `rect_monoid::Max<T>::value_type = T` | 最大値モノイドの値型。 |
+| `rect_monoid::Gcd<T>::value_type = T` | gcd モノイドの値型。 |
+| `rect_monoid::Lcm<T>::value_type = T` | lcm モノイドの値型。 |
+| `rect_monoid::Xor<T>::value_type = T` | xor モノイドの値型。 |
+| `rect_monoid::BitAnd<T>::value_type = T` | bitwise and モノイドの値型。 |
+| `rect_monoid::BitOr<T>::value_type = T` | bitwise or モノイドの値型。 |
+| `rect_monoid::AddMod998244353::value_type = std::int64_t` | mod 998244353 の加法モノイドで使う型。 |
+| `rect_monoid::MulMod998244353::value_type = std::int64_t` | mod 998244353 の乗法モノイドで使う型。 |
+
+### `StaticRangeMonoid`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `value_type = typename Monoid::value_type` | 内部セグメント木で扱う値型。 |
+
+### `CommutativeMonoidWaveletMatrix`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `value_type = T` | 値型。 |
+| `prod_type = typename Monoid::value_type` | モノイド積で使う型。 |
+
+### `RectangleMonoid`
+
+| 型エイリアス | 説明 |
+|---|---|
+| `x_type = X` | x 座標の型。 |
+| `y_type = Y` | y 座標の型。 |
+| `prod_type = typename Monoid::value_type` | 矩形クエリで返すモノイド積の型。 |
+| `wm_type = CommutativeMonoidWaveletMatrix<Y, Monoid>` | 内部で使う Wavelet Matrix の型。 |
+
+### 便利エイリアス
+
+| 型エイリアス | 実体 |
+|---|---|
+| `MonoidWaveletMatrix<T, Monoid>` | `CommutativeMonoidWaveletMatrix<T, Monoid>` |
+| `SumWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Sum<Weight>>` |
+| `ProductWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Product<Weight>>` |
+| `MinWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Min<Weight>>` |
+| `MaxWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Max<Weight>>` |
+| `GcdWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Gcd<Weight>>` |
+| `LcmWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Lcm<Weight>>` |
+| `XorWaveletMatrix<T, Weight = long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::Xor<Weight>>` |
+| `BitAndWaveletMatrix<T, Weight = unsigned long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::BitAnd<Weight>>` |
+| `BitOrWaveletMatrix<T, Weight = unsigned long long>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::BitOr<Weight>>` |
+| `AddMod998244353WaveletMatrix<T>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::AddMod998244353>` |
+| `MulMod998244353WaveletMatrix<T>` | `CommutativeMonoidWaveletMatrix<T, rect_monoid::MulMod998244353>` |
+| `RectangleAdd<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Sum<Weight>>` |
+| `RectangleProduct<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Product<Weight>>` |
+| `RectangleMin<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Min<Weight>>` |
+| `RectangleMax<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Max<Weight>>` |
+| `RectangleGcd<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Gcd<Weight>>` |
+| `RectangleLcm<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Lcm<Weight>>` |
+| `RectangleXor<X, Y, Weight = long long>` | `RectangleMonoid<X, Y, rect_monoid::Xor<Weight>>` |
+| `RectangleBitAnd<X, Y, Weight = unsigned long long>` | `RectangleMonoid<X, Y, rect_monoid::BitAnd<Weight>>` |
+| `RectangleBitOr<X, Y, Weight = unsigned long long>` | `RectangleMonoid<X, Y, rect_monoid::BitOr<Weight>>` |
+| `RectangleAddMod998244353<X, Y>` | `RectangleMonoid<X, Y, rect_monoid::AddMod998244353>` |
+| `RectangleMulMod998244353<X, Y>` | `RectangleMonoid<X, Y, rect_monoid::MulMod998244353>` |
+
 
