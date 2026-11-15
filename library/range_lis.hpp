@@ -2,6 +2,7 @@
 #define RANGE_LIS_HPP
 
 #include <algorithm>
+#include <cstddef>
 #include <numeric>
 #include <stdexcept>
 #include <utility>
@@ -49,7 +50,7 @@ public:
             }
         }
 
-        witnesses_.push_back(Witness{0, 0, -1, Weight{0}}); // Empty witness.
+        witnesses_.push_back(Witness{0, 0, Weight{0}}); // Empty witness.
         functions_.push_back(Function{0, 0, 0, Weight{0}}); // Null sentinel.
         roots_.assign(n_ + 1, 0);
         if (n_ == 0) return;
@@ -91,7 +92,7 @@ public:
         int root = roots_[r];
         int b = 0, e = n_;
         while (true) {
-            const Function& t = functions_[root];
+            const auto t = functions_.links(root);
             answer = answer + witnesses_[t.suffix].weight;
             if (e - b == 1) break;
             const int m = b + (e - b) / 2;
@@ -122,7 +123,7 @@ public:
         int root = roots_[r];
         int b = 0, e = n_;
         while (true) {
-            const Function& t = functions_[root];
+            const auto t = functions_.links(root);
             answer = answer + witnesses_[t.suffix].weight;
             if (t.suffix != 0) suffixes.push_back(t.suffix);
             if (e - b == 1) break;
@@ -146,8 +147,8 @@ public:
                 const int id = stack.back();
                 stack.pop_back();
                 const Witness& t = witnesses_[id];
-                if (t.index >= 0) {
-                    indices.push_back(t.index);
+                if (t.right < 0) {
+                    indices.push_back(t.left);
                 } else {
                     stack.push_back(t.right);
                     stack.push_back(t.left);
@@ -158,9 +159,36 @@ public:
     }
 
 private:
+    // Allocate persistent nodes in fixed-size blocks. Unlike a growing vector,
+    // this never duplicates all previously allocated nodes during reallocation.
+    template <class T>
+    class NodePool {
+        static constexpr int kShift = 13;
+        static constexpr int kBlockSize = 1 << kShift;
+
+        std::vector<std::vector<T>> blocks_;
+        std::size_t size_ = 0;
+
+    public:
+        std::size_t size() const noexcept { return size_; }
+
+        void push_back(T&& value) {
+            if ((size_ & (kBlockSize - 1)) == 0) {
+                blocks_.emplace_back();
+                blocks_.back().reserve(kBlockSize);
+            }
+            blocks_.back().push_back(std::move(value));
+            ++size_;
+        }
+
+        const T& operator[](int index) const noexcept {
+            return blocks_[static_cast<unsigned>(index) >> kShift]
+                          [index & (kBlockSize - 1)];
+        }
+    };
+
     struct Witness {
-        int left, right; // Nonzero for a concatenation node.
-        int index;       // >= 0 for an original array element.
+        int left, right; // right == -1: leaf with original index in left.
         Weight weight;
     };
     struct Function {
@@ -169,10 +197,60 @@ private:
         Weight last;     // Score at the rightmost left-endpoint coordinate.
     };
 
+    // Store the 3 node IDs separately from Weight: avoids padding per node
+    // (20 rather than 24 bytes when Weight is a 64-bit integer).
+    class FunctionPool {
+        static constexpr int kShift = 13;
+        static constexpr int kBlockSize = 1 << kShift;
+
+    public:
+        struct Links { int left, right, suffix; };
+
+    private:
+        struct Block {
+            std::vector<Links> links;
+            std::vector<Weight> last;
+        };
+        std::vector<Block> blocks_;
+        std::size_t size_ = 0;
+
+    public:
+        std::size_t size() const noexcept { return size_; }
+
+        void push_back(Function&& value) {
+            if ((size_ & (kBlockSize - 1)) == 0) {
+                blocks_.emplace_back();
+                blocks_.back().links.reserve(kBlockSize);
+                blocks_.back().last.reserve(kBlockSize);
+            }
+            auto& block = blocks_.back();
+            block.links.push_back(Links{value.left, value.right, value.suffix});
+            block.last.push_back(std::move(value.last));
+            ++size_;
+        }
+
+        Function operator[](int index) const {
+            const auto& block = blocks_[static_cast<unsigned>(index) >> kShift];
+            const int offset = index & (kBlockSize - 1);
+            const auto& link = block.links[offset];
+            return Function{link.left, link.right, link.suffix, block.last[offset]};
+        }
+
+        Links links(int index) const noexcept {
+            return blocks_[static_cast<unsigned>(index) >> kShift]
+                          .links[index & (kBlockSize - 1)];
+        }
+
+        const Weight& last(int index) const noexcept {
+            return blocks_[static_cast<unsigned>(index) >> kShift]
+                          .last[index & (kBlockSize - 1)];
+        }
+    };
+
     int n_ = 0;
     int zero_root_ = 0;
-    std::vector<Witness> witnesses_;
-    std::vector<Function> functions_;
+    NodePool<Witness> witnesses_;
+    FunctionPool functions_;
     std::vector<int> outer_; // Mutable segment tree indexed by value rank.
     std::vector<int> roots_; // Persistent root after each input prefix.
 
@@ -184,7 +262,7 @@ private:
 
     int make_leaf(int index, const Weight& weight) {
         const int id = static_cast<int>(witnesses_.size());
-        witnesses_.push_back(Witness{0, 0, index, weight});
+        witnesses_.push_back(Witness{index, -1, weight});
         return id;
     }
 
@@ -193,7 +271,7 @@ private:
         if (b == 0) return a;
         const Weight sum = witnesses_[a].weight + witnesses_[b].weight;
         const int id = static_cast<int>(witnesses_.size());
-        witnesses_.push_back(Witness{a, b, -1, sum});
+        witnesses_.push_back(Witness{a, b, sum});
         return id;
     }
 
@@ -218,40 +296,54 @@ private:
                              t.last + witnesses_[suffix].weight);
     }
 
-    std::pair<int, int> children(int root) {
-        const Function t = functions_[root];
-        return {append(t.left, t.suffix), append(t.right, t.suffix)};
-    }
-
     int join(int left, int right) {
-        return make_function(left, right, 0, functions_[right].last);
+        return make_function(left, right, 0, functions_.last(right));
     }
 
-    int prefix_append(int root, int b, int e, int c, int suffix) {
-        if (c <= b) return root;
-        if (e <= c) return append(root, suffix);
-        const auto [left, right] = children(root);
+    // Carry inherited suffixes without materializing intermediate nodes.
+    int prefix_append(int root, int b, int e, int c, int suffix,
+                      int pending = 0) {
+        if (c <= b) return append(root, pending);
+        if (e <= c) return append(root, concat(pending, suffix));
+        const auto t = functions_.links(root);
+        const int next = concat(t.suffix, pending);
         const int m = b + (e - b) / 2;
-        if (c <= m) return join(prefix_append(left, b, m, c, suffix), right);
-        return join(append(left, suffix),
-                    prefix_append(right, m, e, c, suffix));
+        if (c <= m) {
+            const int left = prefix_append(t.left, b, m, c, suffix, next);
+            return join(left, append(t.right, next));
+        }
+        const int left = append(t.left, concat(next, suffix));
+        return join(left, prefix_append(t.right, m, e, c, suffix, next));
     }
 
     // Pointwise max of two envelopes whose endpoint values are separated:
     // the second envelope wins strictly on a (possibly empty) prefix.
-    int merge(int f, int g, int b, int e) {
-        if (f == g || g == zero_root_) return f;
-        if (f == zero_root_) return g;
+    int merge(int f, int g, int b, int e, int pending_f = 0,
+              int pending_g = 0) {
+        if (f == g) {
+            const int winner = witnesses_[pending_g].weight >
+                               witnesses_[pending_f].weight ? pending_g : pending_f;
+            return append(f, winner);
+        }
+        if (g == zero_root_ && pending_g == 0) return append(f, pending_f);
+        if (f == zero_root_ && pending_f == 0) return append(g, pending_g);
         if (e - b == 1) {
-            return (functions_[g].last > functions_[f].last) ? g : f;
+            const Weight vf = functions_.last(f) + witnesses_[pending_f].weight;
+            const Weight vg = functions_.last(g) + witnesses_[pending_g].weight;
+            return vg > vf ? append(g, pending_g) : append(f, pending_f);
         }
-        const auto [fl, fr] = children(f);
-        const auto [gl, gr] = children(g);
+        const auto ff = functions_.links(f), gg = functions_.links(g);
+        const int next_f = concat(ff.suffix, pending_f);
+        const int next_g = concat(gg.suffix, pending_g);
+        const Weight fl = functions_.last(ff.left) + witnesses_[next_f].weight;
+        const Weight gl = functions_.last(gg.left) + witnesses_[next_g].weight;
         const int m = b + (e - b) / 2;
-        if (functions_[gl].last > functions_[fl].last) {
-            return join(gl, merge(fr, gr, m, e));
+        if (gl > fl) {
+            const int right = merge(ff.right, gg.right, m, e, next_f, next_g);
+            return join(append(gg.left, next_g), right);
         }
-        return join(merge(fl, gl, b, m), fr);
+        const int left = merge(ff.left, gg.left, b, m, next_f, next_g);
+        return join(left, append(ff.right, next_f));
     }
 
     // Fold full value-rank intervals from left to right.
